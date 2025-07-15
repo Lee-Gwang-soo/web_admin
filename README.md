@@ -1,36 +1,216 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# E-commerce 플랫폼 실시간 대시보드
 
-## Getting Started
+Next.js 14를 기반으로 한 E-commerce 플랫폼을 위한 실시간 데이터 모니터링 및 비즈니스 인사이트 제공 대시보드입니다.
 
-First, run the development server:
+## 🚀 주요 기능
+
+### 1. 기본 인증
+
+- **로그인/로그아웃**: 이메일/비밀번호 기반 인증
+- **Supabase Auth**: 안전한 사용자 인증 시스템
+- **세션 관리**: 자동 세션 관리 및 보안
+
+### 2. 메인 대시보드
+
+- **KPI 카드 (4개)**:
+  - 오늘 매출
+  - 오늘 주문 수
+  - 활성 사용자 수
+  - 전환율
+
+- **실시간 차트 (3개)**:
+  - 시간별 매출 추이 (라인 차트)
+  - 주문 상태별 분포 (도넛 차트)
+  - 상품 카테고리별 판매 (바 차트)
+
+### 3. 실시간 업데이트
+
+- **자동 새로고침**: 5초마다 데이터 업데이트
+- **차트 자동 갱신**: 실시간 데이터 반영
+- **로딩 상태 표시**: 사용자 경험 최적화
+
+### 4. 기본 필터링
+
+- **날짜 선택**: 오늘, 어제, 최근 7일
+- **차트 데이터 필터링**: 동적 데이터 조회
+
+### 5. 데이터 관리
+
+- **내보내기**: CSV, Excel 형태로 데이터 내보내기 (구현 예정)
+
+### 6. 소셜 로그인 (구현 예정)
+
+- Google 로그인
+- GitHub 로그인
+
+## 🛠 기술 스택
+
+### Frontend
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **Charts**: Recharts
+- **State Management**: Zustand
+- **Data Fetching**: TanStack Query
+- **Form**: React Hook Form + Zod
+- **Animation**: Framer Motion
+- **Icons**: Lucide React
+
+### Backend
+
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
+- **API**: Supabase REST API
+- **Edge Functions**: Supabase Edge Functions
+
+### DevOps & Tools
+
+- **Deployment**: Vercel
+- **Version Control**: Git + GitHub
+- **Package Manager**: npm
+- **Code Quality**: ESLint + Prettier
+- **Testing**: Jest + React Testing Library (구현 예정)
+- **CI/CD**: GitHub Actions (구현 예정)
+- **Git Hooks**: Husky, lint-staged (구현 예정)
+
+## 📦 설치 및 실행
+
+### 1. 저장소 클론
+
+```bash
+git clone <repository-url>
+cd admin_web
+```
+
+### 2. 의존성 설치
+
+```bash
+npm install
+```
+
+### 3. 환경 변수 설정
+
+`.env.local` 파일을 생성하고 다음 환경 변수를 설정하세요:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+
+# GitHub OAuth (optional)
+GITHUB_CLIENT_ID=your_github_client_id_here
+GITHUB_CLIENT_SECRET=your_github_client_secret_here
+
+# Next.js
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret_here
+```
+
+### 4. 개발 서버 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000)으로 접속하세요.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📊 대시보드 화면
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 홈페이지
 
-## Learn More
+- 서비스 소개 및 주요 기능 안내
+- 로그인 페이지로 이동
 
-To learn more about Next.js, take a look at the following resources:
+### 로그인 페이지
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- 이메일/비밀번호 로그인
+- 소셜 로그인 버튼 (구현 예정)
+- 반응형 디자인
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 메인 대시보드
 
-## Deploy on Vercel
+- 4개의 KPI 카드로 핵심 지표 표시
+- 3개의 실시간 차트
+- 날짜 필터링 기능
+- 데이터 내보내기 기능
+- 실시간 업데이트 상태 표시
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔧 개발 가이드
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 프로젝트 구조
+
+```
+src/
+├── app/                 # Next.js App Router
+│   ├── dashboard/       # 대시보드 페이지
+│   ├── login/          # 로그인 페이지
+│   ├── layout.tsx      # 루트 레이아웃
+│   └── page.tsx        # 홈페이지
+├── components/         # 재사용 가능한 컴포넌트
+│   ├── ui/            # shadcn/ui 컴포넌트
+│   └── dashboard/     # 대시보드 관련 컴포넌트
+├── lib/               # 유틸리티 및 설정
+├── store/             # Zustand 상태 관리
+└── styles/            # 스타일 파일
+```
+
+### 상태 관리
+
+- **Auth Store**: 사용자 인증 상태 관리
+- **Dashboard Store**: 대시보드 데이터 및 실시간 업데이트 관리
+
+### 컴포넌트 구조
+
+- **KPICard**: 핵심 지표 카드 컴포넌트
+- **RevenueChart**: 시간별 매출 라인 차트
+- **OrderStatusChart**: 주문 상태 도넛 차트
+- **CategoryChart**: 카테고리별 바 차트
+
+## 🚀 배포
+
+### Vercel 배포
+
+1. Vercel 계정에 연결
+2. 환경 변수 설정
+3. 자동 배포 설정
+
+### Supabase 설정
+
+1. Supabase 프로젝트 생성
+2. 데이터베이스 테이블 설정
+3. 인증 설정
+4. API 키 복사
+
+## 📝 향후 계획
+
+- [ ] 실제 Supabase 데이터베이스 연동
+- [ ] 소셜 로그인 구현
+- [ ] 데이터 내보내기 기능 완성
+- [ ] 유닛 테스트 추가
+- [ ] CI/CD 파이프라인 구성
+- [ ] 성능 최적화
+- [ ] 모바일 최적화
+- [ ] 다국어 지원
+
+## 🤝 기여하기
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
+
+## 📞 문의
+
+프로젝트에 대한 질문이나 제안사항이 있으시면 이슈를 등록해 주세요.
