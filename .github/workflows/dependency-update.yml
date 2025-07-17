@@ -1,0 +1,60 @@
+name: Dependency Update
+
+on:
+  schedule:
+    # Run every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Update npm dependencies
+        run: |
+          npm update
+          npm audit fix --audit-level moderate
+
+      - name: Run tests to ensure updates don't break anything
+        run: |
+          npm ci
+          npm run lint
+          npm run type-check
+          npm run build
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update dependencies'
+          title: 'chore: 의존성 자동 업데이트'
+          body: |
+            ## 의존성 자동 업데이트
+
+            이 PR은 npm 의존성을 최신 버전으로 업데이트합니다.
+
+            ### 변경사항
+            - npm 패키지 업데이트
+            - 보안 취약점 수정 (있는 경우)
+
+            ### 확인사항
+            - [x] 린트 검사 통과
+            - [x] 타입 체크 통과
+            - [x] 빌드 성공
+
+            자동 생성된 PR입니다. 변경사항을 검토 후 머지해 주세요.
+          branch: dependency-updates
+          delete-branch: true
