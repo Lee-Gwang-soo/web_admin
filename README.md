@@ -1,6 +1,6 @@
 # E-commerce 플랫폼 실시간 대시보드
 
-Next.js 14를 기반으로 한 E-commerce 플랫폼을 위한 실시간 데이터 모니터링 및 비즈니스 인사이트 제공 대시보드입니다.
+Next.js 14 app router 및 supabase를 기반으로 한 E-commerce 플랫폼을 위한 실시간 데이터 모니터링 및 비즈니스 인사이트 제공 대시보드입니다.
 
 ## 🚀 주요 기능
 
@@ -25,7 +25,7 @@ Next.js 14를 기반으로 한 E-commerce 플랫폼을 위한 실시간 데이�
 
 ### 3. 실시간 업데이트
 
-- **자동 새로고침**: 5초마다 데이터 업데이트
+- **자동 새로고침**: 1분마다 데이터 업데이트
 - **차트 자동 갱신**: 실시간 데이터 반영
 - **로딩 상태 표시**: 사용자 경험 최적화
 
@@ -36,7 +36,7 @@ Next.js 14를 기반으로 한 E-commerce 플랫폼을 위한 실시간 데이�
 
 ### 5. 데이터 관리
 
-- **내보내기**: CSV, Excel 형태로 데이터 내보내기 (구현 예정)
+- **내보내기**: CSV, Excel 형태로 데이터 내보내기
 
 ### 6. 소셜 로그인 (구현 예정)
 
@@ -125,7 +125,7 @@ npm run dev
 
 ### 홈페이지
 
-- 서비스 소개 및 주요 기능 안내
+- 어드민 페이지 첫 렌딩페이지지
 - 로그인 페이지로 이동
 
 ### 로그인 페이지
@@ -198,19 +198,3 @@ src/
 - [ ] 성능 최적화
 - [ ] 모바일 최적화
 - [ ] 다국어 지원
-
-## 🤝 기여하기
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
-
-## 📞 문의
-
-프로젝트에 대한 질문이나 제안사항이 있으시면 이슈를 등록해 주세요.

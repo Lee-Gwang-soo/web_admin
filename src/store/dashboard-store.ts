@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { supabaseApi } from '@/lib/supabase';
 
 export interface KPIData {
   todayRevenue: number;
@@ -22,6 +22,7 @@ export interface DashboardState {
   kpiData: KPIData;
   chartData: ChartData;
   loading: boolean;
+  error: string | null;
   lastUpdated: Date | null;
   dateFilter: 'today' | 'yesterday' | 'week';
   fetchDashboardData: () => Promise<void>;
@@ -30,6 +31,100 @@ export interface DashboardState {
   stopRealTimeUpdates: () => void;
 }
 
+export const useDashboardStore = create<DashboardState>((set, get) => {
+  let updateInterval: NodeJS.Timeout | null = null;
+
+  return {
+    kpiData: {
+      todayRevenue: 0,
+      todayOrders: 0,
+      activeUsers: 0,
+      conversionRate: 0,
+    },
+    chartData: {
+      hourlyRevenue: [],
+      orderStatusDistribution: [],
+      categoryRevenue: [],
+    },
+    loading: false,
+    error: null,
+    lastUpdated: null,
+    dateFilter: 'today',
+
+    fetchDashboardData: async () => {
+      try {
+        set({ loading: true, error: null });
+
+        const dateFilter = get().dateFilter;
+
+        // Fetch all data in parallel
+        const [
+          kpiData,
+          hourlyRevenue,
+          orderStatusDistribution,
+          categoryRevenue,
+        ] = await Promise.all([
+          supabaseApi.getDashboardKPI(dateFilter),
+          supabaseApi.getHourlyRevenue(dateFilter),
+          supabaseApi.getOrderStatusDistribution(),
+          supabaseApi.getCategoryRevenue(),
+        ]);
+
+        set({
+          kpiData,
+          chartData: {
+            hourlyRevenue,
+            orderStatusDistribution,
+            categoryRevenue,
+          },
+          lastUpdated: new Date(),
+          loading: false,
+          error: null,
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+
+        // Fallback to mock data if there's an error
+        const mockData = generateMockData(get().dateFilter);
+
+        set({
+          kpiData: mockData.kpiData,
+          chartData: mockData.chartData,
+          lastUpdated: new Date(),
+          loading: false,
+          error:
+            error instanceof Error ? error.message : 'Failed to fetch data',
+        });
+      }
+    },
+
+    setDateFilter: (filter) => {
+      set({ dateFilter: filter });
+      get().fetchDashboardData();
+    },
+
+    startRealTimeUpdates: () => {
+      const { stopRealTimeUpdates, fetchDashboardData } = get();
+
+      // Stop existing interval
+      stopRealTimeUpdates();
+
+      // Start new interval for 10-second updates (reduced frequency for real data)
+      updateInterval = setInterval(() => {
+        fetchDashboardData();
+      }, 60000);
+    },
+
+    stopRealTimeUpdates: () => {
+      if (updateInterval) {
+        clearInterval(updateInterval);
+        updateInterval = null;
+      }
+    },
+  };
+});
+
+// Fallback mock data function (keep for error cases)
 const generateMockData = (
   filter: 'today' | 'yesterday' | 'week'
 ): { kpiData: KPIData; chartData: ChartData } => {
@@ -65,67 +160,3 @@ const generateMockData = (
     },
   };
 };
-
-export const useDashboardStore = create<DashboardState>((set, get) => {
-  let updateInterval: NodeJS.Timeout | null = null;
-
-  return {
-    kpiData: {
-      todayRevenue: 0,
-      todayOrders: 0,
-      activeUsers: 0,
-      conversionRate: 0,
-    },
-    chartData: {
-      hourlyRevenue: [],
-      orderStatusDistribution: [],
-      categoryRevenue: [],
-    },
-    loading: false,
-    lastUpdated: null,
-    dateFilter: 'today',
-
-    fetchDashboardData: async () => {
-      try {
-        set({ loading: true });
-
-        // For now, using mock data. Replace with actual Supabase queries
-        const mockData = generateMockData(get().dateFilter);
-
-        set({
-          kpiData: mockData.kpiData,
-          chartData: mockData.chartData,
-          lastUpdated: new Date(),
-          loading: false,
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        set({ loading: false });
-      }
-    },
-
-    setDateFilter: (filter) => {
-      set({ dateFilter: filter });
-      get().fetchDashboardData();
-    },
-
-    startRealTimeUpdates: () => {
-      const { stopRealTimeUpdates, fetchDashboardData } = get();
-
-      // Stop existing interval
-      stopRealTimeUpdates();
-
-      // Start new interval for 5-second updates
-      updateInterval = setInterval(() => {
-        fetchDashboardData();
-      }, 5000);
-    },
-
-    stopRealTimeUpdates: () => {
-      if (updateInterval) {
-        clearInterval(updateInterval);
-        updateInterval = null;
-      }
-    },
-  };
-});

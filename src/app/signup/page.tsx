@@ -22,21 +22,24 @@ import {
   Lock,
   AlertCircle,
   CheckCircle,
-  LogIn,
+  User,
   ArrowRight,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const router = useRouter();
-  const { signIn, user, error, clearError } = useAuthStore();
+  const { signUp, signIn, user, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [autoLogin, setAutoLogin] = useState(true);
 
   // 이미 로그인된 사용자는 대시보드로 리다이렉트
   useEffect(() => {
@@ -44,17 +47,6 @@ export default function LoginPage() {
       router.push('/dashboard');
     }
   }, [user, router]);
-
-  // 저장된 로그인 정보 복원
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
-
-    if (savedRememberMe && savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
-    }
-  }, []);
 
   // 에러 상태 동기화
   useEffect(() => {
@@ -64,59 +56,106 @@ export default function LoginPage() {
     }
   }, [error, clearError]);
 
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      return '비밀번호는 최소 6자 이상이어야 합니다.';
+    }
+    return '';
+  };
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return '올바른 이메일 주소를 입력해주세요.';
+    }
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
     setSuccess('');
     setIsLoading(true);
 
-    if (!email || !password) {
-      setLocalError('이메일과 비밀번호를 입력해주세요.');
+    // Validation
+    if (!email || !password || !confirmPassword) {
+      setLocalError('모든 필드를 입력해주세요.');
       setIsLoading(false);
       return;
     }
 
-    // 이메일 형식 검증
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setLocalError('올바른 이메일 주소를 입력해주세요.');
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setLocalError(emailError);
+      setIsLoading(false);
+      return;
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setLocalError(passwordError);
+      setIsLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setLocalError('비밀번호가 일치하지 않습니다.');
       setIsLoading(false);
       return;
     }
 
     try {
-      const result = await signIn(email, password);
+      const result = await signUp(email, password);
 
       if (result.success) {
-        // Remember Me 처리
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', email);
-          localStorage.setItem('rememberMe', 'true');
+        if (result.error) {
+          // 이메일 확인이 필요한 경우
+          setSuccess(result.error);
+          setTimeout(() => {
+            router.push('/login');
+          }, 3000);
         } else {
-          localStorage.removeItem('rememberedEmail');
-          localStorage.removeItem('rememberMe');
+          // 즉시 로그인 가능한 경우
+          setSuccess('🎉 회원가입이 완료되었습니다!');
+
+          if (autoLogin) {
+            setSuccess('회원가입 완료! 자동으로 로그인하는 중...');
+
+            setTimeout(async () => {
+              const loginResult = await signIn(email, password);
+              if (loginResult.success) {
+                setSuccess('✅ 로그인 성공! 대시보드로 이동합니다...');
+                setTimeout(() => {
+                  router.push('/dashboard');
+                }, 1000);
+              } else {
+                setSuccess(
+                  '회원가입은 완료되었습니다. 로그인 페이지로 이동합니다...'
+                );
+                setTimeout(() => {
+                  router.push('/login');
+                }, 2000);
+              }
+            }, 1000);
+          } else {
+            setTimeout(() => {
+              router.push('/login');
+            }, 2000);
+          }
         }
-
-        setSuccess('✅ 로그인 성공! 대시보드로 이동합니다...');
-
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 1000);
       } else {
-        setLocalError(result.error || '로그인에 실패했습니다.');
+        setLocalError(result.error || '회원가입에 실패했습니다.');
       }
     } catch (error) {
-      console.error('로그인 에러:', error);
-      setLocalError(
-        '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-      );
+      console.error('회원가입 오류:', error);
+      setLocalError('회원가입 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -126,10 +165,10 @@ export default function LoginPage() {
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">
-              로그인
+              회원가입
             </CardTitle>
             <CardDescription className="text-center">
-              Supabase 계정으로 대시보드에 접속하세요
+              Supabase 계정을 생성하여 대시보드에 접속하세요
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -173,18 +212,18 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="비밀번호를 입력하세요"
+                    placeholder="최소 6자 이상"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
                     disabled={isLoading}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 cursor-pointer"
                     disabled={isLoading}
                   >
                     {showPassword ? <EyeOff /> : <Eye />}
@@ -192,39 +231,57 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Remember Me */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">비밀번호 확인</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="비밀번호를 다시 입력하세요"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10 pr-10"
                     disabled={isLoading}
+                    autoComplete="new-password"
+                    required
                   />
-                  <Label htmlFor="rememberMe" className="text-sm text-gray-600">
-                    로그인 정보 기억하기
-                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? <EyeOff /> : <Eye />}
+                  </button>
                 </div>
-                <Link
-                  href="/signup"
-                  className="text-sm text-blue-600 hover:text-blue-500"
-                >
-                  회원가입
-                </Link>
+              </div>
+
+              {/* 자동 로그인 옵션 */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="autoLogin"
+                  checked={autoLogin}
+                  onChange={(e) => setAutoLogin(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  disabled={isLoading}
+                />
+                <Label htmlFor="autoLogin" className="text-sm text-gray-600">
+                  회원가입 후 자동으로 로그인 (이메일 확인 불필요한 경우)
+                </Label>
               </div>
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    로그인 중...
+                    {autoLogin ? '가입 후 로그인 중...' : '회원가입 중...'}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center">
-                    <LogIn className="h-4 w-4 mr-2" />
-                    로그인
+                    <User className="h-4 w-4 mr-2" />
+                    회원가입
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </div>
                 )}
@@ -243,30 +300,31 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Supabase 정보 */}
+              {/* Supabase 회원가입 정보 */}
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700 font-medium mb-2">
-                  🚀 Supabase 인증 시스템
+                <p className="text-sm text-blue-700 font-medium mb-2 flex items-center">
+                  <Info className="h-4 w-4 mr-1" />
+                  Supabase 회원가입 안내
                 </p>
                 <div className="text-xs text-blue-600 space-y-1">
-                  <p>• 실제 Supabase Authentication 사용</p>
-                  <p>• 이메일 확인 기반 회원가입</p>
-                  <p>• 보안 세션 관리</p>
+                  <p>• 이메일 주소로 계정이 생성됩니다</p>
+                  <p>• 이메일 확인이 필요할 수 있습니다</p>
+                  <p>• 보안을 위해 강력한 비밀번호를 사용하세요</p>
                   <p className="text-blue-500 mt-2">
-                    계정이 없다면 회원가입을 먼저 진행해주세요.
+                    회원가입 후 이메일을 확인해주세요.
                   </p>
                 </div>
               </div>
 
-              {/* 회원가입 링크 */}
+              {/* 기존 계정으로 로그인 */}
               <div className="mt-4 text-center">
                 <p className="text-sm text-gray-600">
-                  계정이 없으신가요?{' '}
+                  이미 계정이 있으신가요?{' '}
                   <Link
-                    href="/signup"
+                    href="/login"
                     className="text-blue-600 hover:text-blue-500 font-medium"
                   >
-                    새 계정 만들기
+                    로그인하기
                   </Link>
                 </p>
               </div>
