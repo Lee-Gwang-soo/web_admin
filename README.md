@@ -72,9 +72,13 @@ Next.js 14 app router 및 supabase를 기반으로 한 E-commerce 플랫폼을 �
 - **Version Control**: Git + GitHub
 - **Package Manager**: npm
 - **Code Quality**: ESLint + Prettier
+- **Git Hooks**: Husky + lint-staged
+- **CI/CD**: GitHub Actions
+- **Security**: CodeQL Analysis
+- **Performance**: Lighthouse CI
+- **Bundle Analysis**: Next.js Bundle Analyzer
+- **Data Export**: SheetJS (xlsx)
 - **Testing**: Jest + React Testing Library (구현 예정)
-- **CI/CD**: GitHub Actions (구현 예정)
-- **Git Hooks**: Husky, lint-staged (구현 예정)
 
 ## 📦 설치 및 실행
 
@@ -120,6 +124,59 @@ npm run dev
 ```
 
 브라우저에서 [http://localhost:3000](http://localhost:3000)으로 접속하세요.
+
+## ⚙️ 개발 스크립트
+
+```bash
+# 개발 서버 실행
+npm run dev
+
+# 프로덕션 빌드
+npm run build
+
+# 프로덕션 서버 실행
+npm start
+
+# 코드 품질 검사
+npm run lint
+npm run lint:fix
+
+# 코드 포맷팅
+npm run format
+npm run format:check
+
+# 타입 체크
+npm run type-check
+```
+
+## 🔄 Git Hooks & CI/CD
+
+### Pre-commit Hooks
+
+- **ESLint**: 코드 품질 자동 검사
+- **Prettier**: 코드 포맷팅 자동 적용
+- **Type Check**: TypeScript 타입 검증
+
+### Commit Message
+
+다음 형식을 따라야 합니다:
+
+```
+type(scope): description
+
+예시:
+feat(products): add export functionality
+fix: resolve navigation issue
+docs: update README
+```
+
+### GitHub Actions 워크플로우
+
+- **CI Pipeline**: 코드 품질 검사, 빌드, 타입 체크
+- **Security**: CodeQL 보안 분석
+- **Performance**: Lighthouse 성능 감사
+- **Dependency Updates**: 자동 의존성 업데이트
+- **Deployment**: Vercel 자동 배포
 
 ## 📊 대시보드 화면
 
@@ -188,13 +245,32 @@ src/
 3. 인증 설정
 4. API 키 복사
 
-## 📝 향후 계획
+## 📝 완료된 기능 및 향후 계획
 
-- [ ] 실제 Supabase 데이터베이스 연동
+### ✅ 완료된 기능
+
+- [x] 실제 Supabase 데이터베이스 연동
+- [x] 상품 관리 시스템 (CRUD, 이미지 업로드)
+- [x] 벌크 작업 (일괄 삭제/수정)
+- [x] 상품 복제 기능
+- [x] Excel 데이터 내보내기
+- [x] Git Hooks 설정 (Husky, lint-staged)
+- [x] CI/CD 파이프라인 구성 (GitHub Actions)
+- [x] 코드 품질 도구 (ESLint, Prettier)
+- [x] 보안 스캔 (CodeQL)
+- [x] 성능 감사 (Lighthouse)
+
+### 🚧 진행 중
+
+- [ ] 주문 관리 시스템
+- [ ] 사용자 관리 고도화
+- [ ] 실시간 알림 시스템
+
+### 📋 향후 계획
+
 - [ ] 소셜 로그인 구현
-- [ ] 데이터 내보내기 기능 완성
 - [ ] 유닛 테스트 추가
-- [ ] CI/CD 파이프라인 구성
-- [ ] 성능 최적화
 - [ ] 모바일 최적화
 - [ ] 다국어 지원
+- [ ] 고급 분석 기능
+- [ ] API 문서화
