@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { AdminLayout } from '@/components/layout/admin-layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
@@ -13,15 +11,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,6 +18,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -37,26 +28,35 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Plus,
-  Search,
-  Package,
-  DollarSign,
-  TrendingUp,
-  Edit,
-  Trash2,
-  Eye,
-  RefreshCw,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Copy,
-  FileSpreadsheet,
-  CheckSquare,
-  Square,
-} from 'lucide-react';
-import { useProductsStore, SortField } from '@/store/products-store';
-import { Label } from '@/components/ui/label';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Product, supabaseApi } from '@/lib/supabase';
+import { SortField, useProductsStore } from '@/store/products-store';
+import { motion } from 'framer-motion';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  CheckSquare,
+  Copy,
+  DollarSign,
+  Edit,
+  Eye,
+  FileSpreadsheet,
+  Package,
+  Plus,
+  RefreshCw,
+  Search,
+  Square,
+  Trash2,
+  TrendingUp,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 // Add Product Form Component
 interface AddProductFormProps {
@@ -884,7 +884,7 @@ export default function ProductsPage() {
                           </Button>
                         </TableHead>
                         <TableHead className="w-20">이미지</TableHead>
-                        <TableHead>
+                        <TableHead className="flex justify-center">
                           <Button
                             variant="ghost"
                             className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
@@ -944,7 +944,9 @@ export default function ProductsPage() {
                             {getSortIcon('created_at')}
                           </Button>
                         </TableHead>
-                        <TableHead className="text-right">작업</TableHead>
+                        <TableHead className="flex justify-center">
+                          작업
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -996,7 +998,7 @@ export default function ProductsPage() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="font-medium flex justify-center">
                             {product.name}
                           </TableCell>
                           <TableCell>
@@ -1018,8 +1020,8 @@ export default function ProductsPage() {
                               'ko-KR'
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-2">
+                          <TableCell className="">
+                            <div className="flex justify-center space-x-2">
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button

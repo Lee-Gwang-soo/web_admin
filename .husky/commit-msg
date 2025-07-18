@@ -1,8 +1,8 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-# Commit message format check
-commit_regex='^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .{1,50}'
+# Commit message format check - more flexible
+commit_regex='^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?\s*:\s*.{1,100}'
 
 if ! grep -qE "$commit_regex" "$1"; then
     echo "❌ Invalid commit message format!"

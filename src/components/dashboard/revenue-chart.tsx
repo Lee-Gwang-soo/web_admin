@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import {
   Card,
   CardContent,
@@ -8,14 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 import {
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from 'recharts';
 
 interface RevenueData {
@@ -54,7 +54,7 @@ export function RevenueChart({ data, loading = false }: RevenueChartProps) {
         <CardHeader>
           <CardTitle>시간별 매출 추이</CardTitle>
           <CardDescription>
-            오늘의 시간대별 매출 현황을 확인하세요
+            선택한 기간의 시간대별 매출 현황을 확인하세요
           </CardDescription>
         </CardHeader>
         <CardContent>

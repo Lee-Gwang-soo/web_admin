@@ -46,12 +46,24 @@ export interface User {
 }
 
 export interface Order {
-  id: string;
+  id: string; // 8글자 텍스트 ID (예: AB12CD34)
   user_id: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status:
+    | 'pending'
+    | 'payment_confirmed'
+    | 'preparing'
+    | 'shipped'
+    | 'delivered'
+    | 'cancelled'
+    | 'returned';
   total_amount: number;
   created_at: string;
   updated_at: string;
+  // Add additional fields for order management
+  customer_name?: string;
+  customer_email?: string;
+  shipping_address?: string;
+  payment_method?: string;
 }
 
 export interface Product {
@@ -84,6 +96,7 @@ export interface OrderItem {
 // Extended types for dashboard queries
 export interface OrderWithItems extends Order {
   order_items: (OrderItem & { product: Product })[];
+  user?: { email: string };
 }
 
 export interface DashboardKPI {
@@ -144,10 +157,10 @@ export const supabaseApi = {
         endDate.toISOString()
       );
 
-      // Get revenue and order count
+      // Get revenue and order count (excluding cancelled and returned orders)
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('total_amount, created_at')
+        .select('total_amount, created_at, status')
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString());
 
@@ -158,10 +171,18 @@ export const supabaseApi = {
         throw ordersError;
       }
 
+      // Calculate revenue excluding cancelled and returned orders
+      const validOrders =
+        orders?.filter(
+          (order) => order.status !== 'cancelled' && order.status !== 'returned'
+        ) || [];
+
       const todayRevenue =
-        orders?.reduce((sum, order) => sum + Number(order.total_amount), 0) ||
-        0;
-      const todayOrders = orders?.length || 0;
+        validOrders.reduce(
+          (sum, order) => sum + Number(order.total_amount),
+          0
+        ) || 0;
+      const todayOrders = validOrders.length;
 
       // Get active users (users who made orders in the time period)
       const { data: activeUsers, error: usersError } = await supabase
@@ -225,11 +246,17 @@ export const supabaseApi = {
     try {
       const { data: orders, error } = await supabase
         .from('orders')
-        .select('total_amount, created_at')
+        .select('total_amount, created_at, status')
         .gte('created_at', startDate.toISOString())
         .order('created_at');
 
       if (error) throw error;
+
+      // Filter out cancelled and returned orders
+      const validOrders =
+        orders?.filter(
+          (order) => order.status !== 'cancelled' && order.status !== 'returned'
+        ) || [];
 
       // Group by hour
       const hourlyData: { [key: string]: number } = {};
@@ -238,7 +265,7 @@ export const supabaseApi = {
         hourlyData[`${i}:00`] = 0;
       }
 
-      orders?.forEach((order) => {
+      validOrders.forEach((order) => {
         const hour = new Date(order.created_at).getHours();
         hourlyData[`${hour}:00`] += order.total_amount;
       });
@@ -253,30 +280,52 @@ export const supabaseApi = {
     }
   },
 
-  async getOrderStatusDistribution(): Promise<
-    Array<{ status: string; count: number; color: string }>
-  > {
+  async getOrderStatusDistribution(
+    dateFilter: 'today' | 'yesterday' | 'week' = 'today'
+  ): Promise<Array<{ status: string; count: number; color: string }>> {
+    const now = new Date();
+    const startDate = new Date();
+
+    switch (dateFilter) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'yesterday':
+        startDate.setDate(now.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+    }
+
     try {
       const { data: orders, error } = await supabase
         .from('orders')
-        .select('status');
+        .select('status, created_at')
+        .gte('created_at', startDate.toISOString());
 
       if (error) throw error;
 
       const statusColors = {
         pending: '#f59e0b',
-        processing: '#3b82f6',
-        shipped: '#10b981',
-        delivered: '#8b5cf6',
+        payment_confirmed: '#3b82f6',
+        preparing: '#10b981',
+        shipped: '#8b5cf6',
+        delivered: '#ef4444',
         cancelled: '#ef4444',
+        returned: '#6b7280',
       };
 
       const statusCounts: { [key: string]: number } = {
         pending: 0,
-        processing: 0,
+        payment_confirmed: 0,
+        preparing: 0,
         shipped: 0,
         delivered: 0,
         cancelled: 0,
+        returned: 0,
       };
 
       orders?.forEach((order) => {
@@ -294,19 +343,53 @@ export const supabaseApi = {
     }
   },
 
-  async getCategoryRevenue(): Promise<CategoryRevenue[]> {
+  async getCategoryRevenue(
+    dateFilter: 'today' | 'yesterday' | 'week' = 'today'
+  ): Promise<CategoryRevenue[]> {
+    const now = new Date();
+    const startDate = new Date();
+
+    switch (dateFilter) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'yesterday':
+        startDate.setDate(now.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+    }
+
     try {
       const { data, error } = await supabase.from('order_items').select(`
           quantity,
           price,
-          product:products(category)
+          product:products(category),
+          order:orders(status, created_at)
         `);
 
       if (error) throw error;
 
       const categoryRevenue: { [key: string]: number } = {};
 
-      data?.forEach((item) => {
+      // Filter out items from cancelled and returned orders and apply date filter
+      const validItems =
+        data?.filter((item) => {
+          const order = item.order as unknown as {
+            status: string;
+            created_at: string;
+          };
+          const orderDate = new Date(order?.created_at);
+          const isValidStatus =
+            order?.status !== 'cancelled' && order?.status !== 'returned';
+          const isWithinDateRange = orderDate >= startDate;
+          return isValidStatus && isWithinDateRange;
+        }) || [];
+
+      validItems.forEach((item) => {
         const category =
           (item.product as unknown as Product)?.category || 'Unknown';
         const revenue = item.quantity * item.price;
@@ -600,6 +683,178 @@ export const supabaseApi = {
     } catch (error) {
       console.error('Error fetching user orders:', error);
       throw error;
+    }
+  },
+
+  // Orders management functions
+  async getOrders(search?: string, status?: string) {
+    try {
+      console.log('🔍 supabaseApi.getOrders - Starting query with params:', {
+        search,
+        status,
+      });
+
+      let query = supabase
+        .from('orders')
+        .select(
+          `
+          *,
+          users!orders_user_id_fkey(email),
+          order_items(
+            *,
+            products(name, category)
+          )
+        `
+        )
+        .order('created_at', { ascending: false });
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+
+      console.log('🔍 supabaseApi.getOrders - Raw query result:', {
+        data,
+        error,
+      });
+      console.log('🔍 supabaseApi.getOrders - Data length:', data?.length);
+
+      if (error) throw error;
+
+      // Transform data to match OrderWithItems interface
+      const transformedData =
+        data?.map((order) => ({
+          ...order,
+          user: order.users ? { email: order.users.email } : undefined,
+          order_items:
+            order.order_items?.map((item: any) => ({
+              ...item,
+              product: item.products,
+            })) || [],
+        })) || [];
+
+      console.log(
+        '🔍 supabaseApi.getOrders - Transformed data:',
+        transformedData
+      );
+      console.log(
+        '🔍 supabaseApi.getOrders - Transformed data length:',
+        transformedData.length
+      );
+
+      // Apply search filter on client side if needed
+      let result = transformedData;
+      if (search) {
+        const searchLower = search.toLowerCase();
+        result = transformedData.filter(
+          (order) =>
+            order.id.toLowerCase().includes(searchLower) ||
+            order.user?.email?.toLowerCase().includes(searchLower)
+        );
+        console.log('🔍 supabaseApi.getOrders - After search filter:', result);
+      }
+
+      console.log('🔍 supabaseApi.getOrders - Final result:', result);
+      console.log(
+        '🔍 supabaseApi.getOrders - Final result length:',
+        result.length
+      );
+      return result;
+    } catch (error) {
+      console.error('🔍 supabaseApi.getOrders - Error:', error);
+      throw error;
+    }
+  },
+
+  async updateOrderStatus(orderId: string, status: string) {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw error;
+    }
+  },
+
+  async bulkUpdateOrderStatus(orderIds: string[], status: string) {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', orderIds)
+        .select();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error bulk updating order status:', error);
+      throw error;
+    }
+  },
+
+  async deleteOrder(orderId: string) {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      throw error;
+    }
+  },
+
+  async bulkDeleteOrders(orderIds: string[]) {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .in('id', orderIds);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error bulk deleting orders:', error);
+      throw error;
+    }
+  },
+
+  async getOrderStatuses() {
+    try {
+      const { data, error } = await supabase.from('orders').select('status');
+
+      if (error) throw error;
+
+      const statuses = Array.from(
+        new Set(data?.map((item) => item.status) || [])
+      );
+      return statuses;
+    } catch (error) {
+      console.error('Error fetching order statuses:', error);
+      return [
+        'pending',
+        'payment_confirmed',
+        'preparing',
+        'shipped',
+        'delivered',
+        'cancelled',
+        'returned',
+      ];
     }
   },
 };
