@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { motion } from 'framer-motion';
+import { memo, useMemo } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -28,21 +29,62 @@ interface RevenueChartProps {
   loading?: boolean;
 }
 
-export function RevenueChart({ data, loading = false }: RevenueChartProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
+export const RevenueChart = memo<RevenueChartProps>(function RevenueChart({
+  data,
+  loading = false,
+}) {
+  const formatCurrency = useMemo(() => {
+    return (value: number) => {
+      return new Intl.NumberFormat('ko-KR', {
+        style: 'currency',
+        currency: 'KRW',
+        minimumFractionDigits: 0,
+      }).format(value);
+    };
+  }, []);
 
-  const formatTooltip = (value: number, name: string) => {
-    if (name === 'revenue') {
-      return [formatCurrency(value), '매출'];
-    }
-    return [value, name];
-  };
+  const formatTooltip = useMemo(() => {
+    return (value: number, name: string) => {
+      if (name === 'revenue') {
+        return [formatCurrency(value), '매출'];
+      }
+      return [value, name];
+    };
+  }, [formatCurrency]);
+
+  const chartConfig = useMemo(
+    () => ({
+      margin: {
+        top: 5,
+        right: 30,
+        left: 20,
+        bottom: 5,
+      },
+      strokeDasharray: '3 3',
+      strokeColor: '#f0f0f0',
+      axisStyle: {
+        stroke: '#666',
+        fontSize: 12,
+        tickLine: false,
+        axisLine: false,
+      },
+      lineStyle: {
+        type: 'monotone' as const,
+        dataKey: 'revenue',
+        stroke: '#3b82f6',
+        strokeWidth: 3,
+        dot: { fill: '#3b82f6', strokeWidth: 2, r: 4 },
+        activeDot: { r: 6, stroke: '#3b82f6', strokeWidth: 2 },
+      },
+      tooltipStyle: {
+        backgroundColor: 'white',
+        border: '1px solid #e2e8f0',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+    []
+  );
 
   return (
     <motion.div
@@ -74,48 +116,22 @@ export function RevenueChart({ data, loading = false }: RevenueChartProps) {
           ) : (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={data}
-                  margin={{
-                    top: 5,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="hour"
-                    stroke="#666"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
+                <LineChart data={data} margin={chartConfig.margin}>
+                  <CartesianGrid
+                    strokeDasharray={chartConfig.strokeDasharray}
+                    stroke={chartConfig.strokeColor}
                   />
+                  <XAxis dataKey="hour" {...chartConfig.axisStyle} />
                   <YAxis
-                    stroke="#666"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
+                    {...chartConfig.axisStyle}
                     tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
                   />
                   <Tooltip
                     formatter={formatTooltip}
                     labelFormatter={(label) => `시간: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                    }}
+                    contentStyle={chartConfig.tooltipStyle}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#3b82f6"
-                    strokeWidth={3}
-                    dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
-                  />
+                  <Line {...chartConfig.lineStyle} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -124,4 +140,4 @@ export function RevenueChart({ data, loading = false }: RevenueChartProps) {
       </Card>
     </motion.div>
   );
-}
+});

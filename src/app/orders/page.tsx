@@ -360,8 +360,6 @@ export default function OrdersPage() {
     sortOrder,
     selectedOrders,
     bulkStatusUpdate,
-    fetchOrders,
-    fetchStatuses,
     setSearchTerm,
     setSelectedStatus,
     setSorting,

@@ -1,9 +1,10 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
+import { memo, useMemo } from 'react';
 
 interface KPICardProps {
   title: string;
@@ -15,7 +16,7 @@ interface KPICardProps {
   loading?: boolean;
 }
 
-export function KPICard({
+export const KPICard = memo<KPICardProps>(function KPICard({
   title,
   value,
   change,
@@ -23,25 +24,27 @@ export function KPICard({
   description,
   trend = 'neutral',
   loading = false,
-}: KPICardProps) {
-  const formatValue = (val: string | number) => {
-    if (typeof val === 'number') {
-      if (title.includes('매출') || title.includes('Revenue')) {
-        return new Intl.NumberFormat('ko-KR', {
-          style: 'currency',
-          currency: 'KRW',
-          minimumFractionDigits: 0,
-        }).format(val);
+}) {
+  const formatValue = useMemo(() => {
+    return (val: string | number) => {
+      if (typeof val === 'number') {
+        if (title.includes('매출') || title.includes('Revenue')) {
+          return new Intl.NumberFormat('ko-KR', {
+            style: 'currency',
+            currency: 'KRW',
+            minimumFractionDigits: 0,
+          }).format(val);
+        }
+        if (title.includes('율') || title.includes('Rate')) {
+          return `${val.toFixed(1)}%`;
+        }
+        return new Intl.NumberFormat('ko-KR').format(val);
       }
-      if (title.includes('율') || title.includes('Rate')) {
-        return `${val.toFixed(1)}%`;
-      }
-      return new Intl.NumberFormat('ko-KR').format(val);
-    }
-    return val;
-  };
+      return val;
+    };
+  }, [title]);
 
-  const getTrendColor = () => {
+  const trendColor = useMemo(() => {
     switch (trend) {
       case 'up':
         return 'text-green-600 bg-green-100';
@@ -50,9 +53,9 @@ export function KPICard({
       default:
         return 'text-gray-600 bg-gray-100';
     }
-  };
+  }, [trend]);
 
-  const getTrendIcon = () => {
+  const trendIcon = useMemo(() => {
     switch (trend) {
       case 'up':
         return '↗';
@@ -61,7 +64,7 @@ export function KPICard({
       default:
         return '→';
     }
-  };
+  }, [trend]);
 
   return (
     <motion.div
@@ -90,8 +93,8 @@ export function KPICard({
 
             {change !== undefined && !loading && (
               <div className="flex items-center space-x-2">
-                <Badge variant="secondary" className={getTrendColor()}>
-                  <span className="mr-1">{getTrendIcon()}</span>
+                <Badge variant="secondary" className={trendColor}>
+                  <span className="mr-1">{trendIcon}</span>
                   {Math.abs(change).toFixed(1)}%
                 </Badge>
                 <span className="text-xs text-muted-foreground">전일 대비</span>
@@ -108,4 +111,4 @@ export function KPICard({
       </Card>
     </motion.div>
   );
-}
+});
