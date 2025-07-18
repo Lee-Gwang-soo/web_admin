@@ -1,5 +1,5 @@
-import { create } from 'zustand';
 import { supabaseApi } from '@/lib/supabase';
+import { create } from 'zustand';
 
 export interface KPIData {
   todayRevenue: number;
@@ -66,8 +66,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
         ] = await Promise.all([
           supabaseApi.getDashboardKPI(dateFilter),
           supabaseApi.getHourlyRevenue(dateFilter),
-          supabaseApi.getOrderStatusDistribution(),
-          supabaseApi.getCategoryRevenue(),
+          supabaseApi.getOrderStatusDistribution(dateFilter),
+          supabaseApi.getCategoryRevenue(dateFilter),
         ]);
 
         set({

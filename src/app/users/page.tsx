@@ -1,20 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -23,9 +12,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useUsersStore } from '@/store/users-store';
-import { Users, Search, Eye, Calendar, ShoppingBag } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useUsersStore } from '@/store/users-store';
+import { motion } from 'framer-motion';
+import { Calendar, Eye, Search, ShoppingBag, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function UsersPage() {
   const {
@@ -251,7 +251,8 @@ export default function UsersPage() {
                                                     {order.status ===
                                                       'pending' && '대기중'}
                                                     {order.status ===
-                                                      'processing' && '처리중'}
+                                                      'payment_confirmed' &&
+                                                      '처리중'}
                                                     {order.status ===
                                                       'shipped' && '배송중'}
                                                     {order.status ===

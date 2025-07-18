@@ -1,18 +1,19 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth-store';
+import {
+  BarChart3,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  Settings,
+  ShoppingCart,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import {
-  LayoutDashboard,
-  Package,
-  Users,
-  LogOut,
-  BarChart3,
-  Settings,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuthStore } from '@/store/auth-store';
 
 const navigation = [
   {
@@ -20,6 +21,12 @@ const navigation = [
     href: '/dashboard',
     icon: LayoutDashboard,
     description: '대시보드 및 KPI',
+  },
+  {
+    name: 'Orders',
+    href: '/orders',
+    icon: ShoppingCart,
+    description: '주문 관리',
   },
   {
     name: 'Products',

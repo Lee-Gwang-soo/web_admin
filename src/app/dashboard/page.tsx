@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { CategoryChart } from '@/components/dashboard/category-chart';
+import { KPICard } from '@/components/dashboard/kpi-card';
+import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
+import { RevenueChart } from '@/components/dashboard/revenue-chart';
+import { AdminLayout } from '@/components/layout/admin-layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,22 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { KPICard } from '@/components/dashboard/kpi-card';
-import { RevenueChart } from '@/components/dashboard/revenue-chart';
-import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
-import { CategoryChart } from '@/components/dashboard/category-chart';
-import { AdminLayout } from '@/components/layout/admin-layout';
 import { useDashboardStore } from '@/store/dashboard-store';
+import { motion } from 'framer-motion';
 import {
-  DollarSign,
-  ShoppingCart,
-  Users,
-  TrendingUp,
-  RefreshCw,
-  Download,
   Calendar,
+  DollarSign,
+  Download,
+  RefreshCw,
+  ShoppingCart,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function DashboardPage() {
   const {
@@ -238,7 +238,13 @@ export default function DashboardPage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
           >
             <KPICard
-              title="오늘 매출"
+              title={
+                dateFilter === 'today'
+                  ? '오늘 매출'
+                  : dateFilter === 'yesterday'
+                    ? '어제 매출'
+                    : '최근 7일 매출'
+              }
               value={kpiData.todayRevenue}
               change={12.5}
               trend="up"
@@ -247,7 +253,13 @@ export default function DashboardPage() {
               description="전일 대비 증가"
             />
             <KPICard
-              title="오늘 주문 수"
+              title={
+                dateFilter === 'today'
+                  ? '오늘 주문 수'
+                  : dateFilter === 'yesterday'
+                    ? '어제 주문 수'
+                    : '최근 7일 주문 수'
+              }
               value={kpiData.todayOrders}
               change={8.2}
               trend="up"
