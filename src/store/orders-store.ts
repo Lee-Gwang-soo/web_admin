@@ -4,20 +4,22 @@ import { create } from 'zustand';
 export type OrderSortField =
   | 'created_at'
   | 'total_amount'
-  | 'status'
-  | 'customer_email';
+  | 'customer_email'
+  | 'status';
 export type SortOrder = 'asc' | 'desc' | 'none';
 
-export interface OrdersState {
+interface OrdersState {
   orders: OrderWithItems[];
   statuses: string[];
   loading: boolean;
   error: string | null;
   searchTerm: string;
   selectedStatus: string;
-  sortField: OrderSortField | null;
+  sortField: OrderSortField;
   sortOrder: SortOrder;
-  selectedOrders: string[];
+  selectedOrders: string[]; // Changed back to array
+  bulkActionLoading: boolean;
+  selectedOrderForDetails: OrderWithItems | null;
   bulkStatusUpdate: string | null;
 
   // Actions
@@ -27,19 +29,61 @@ export interface OrdersState {
   setSelectedStatus: (status: string) => void;
   setSorting: (field: OrderSortField) => void;
   updateOrderStatus: (orderId: string, status: string) => Promise<void>;
-
-  // Bulk operations
+  bulkUpdateStatus: (orderIds: string[], status: string) => Promise<void>;
+  bulkDeleteOrders: (orderIds: string[]) => Promise<void>;
   toggleOrderSelection: (orderId: string) => void;
+  toggleAllOrdersSelection: () => void;
   selectAllOrders: () => void;
   clearSelection: () => void;
-  bulkUpdateOrderStatus: (orderIds: string[], status: string) => Promise<void>;
-  bulkDeleteOrders: (orderIds: string[]) => Promise<void>;
-  setBulkStatusUpdate: (status: string | null) => void;
-
-  // Export operations
+  exportToExcel: () => void;
   exportOrdersToExcel: () => void;
+  bulkUpdateOrderStatus: (orderIds: string[], status: string) => Promise<void>;
+  setBulkStatusUpdate: (status: string | null) => void;
+  setSelectedOrderForDetails: (order: OrderWithItems | null) => void;
   refreshData: () => Promise<void>;
 }
+
+// Debounce utility
+let searchTimeoutId: NodeJS.Timeout | null = null;
+
+// Memoized sorting function
+const sortOrders = (
+  orders: OrderWithItems[],
+  field: OrderSortField,
+  order: SortOrder
+): OrderWithItems[] => {
+  if (order === 'none') return orders;
+
+  return [...orders].sort((a, b) => {
+    let aValue: any;
+    let bValue: any;
+
+    switch (field) {
+      case 'created_at':
+        aValue = new Date(a.created_at);
+        bValue = new Date(b.created_at);
+        break;
+      case 'total_amount':
+        aValue = a.total_amount;
+        bValue = b.total_amount;
+        break;
+      case 'customer_email':
+        aValue = a.customer_email?.toLowerCase() || '';
+        bValue = b.customer_email?.toLowerCase() || '';
+        break;
+      case 'status':
+        aValue = a.status;
+        bValue = b.status;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue < bValue) return order === 'asc' ? -1 : 1;
+    if (aValue > bValue) return order === 'asc' ? 1 : -1;
+    return 0;
+  });
+};
 
 export const useOrdersStore = create<OrdersState>((set, get) => ({
   orders: [],
@@ -48,32 +92,34 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
   error: null,
   searchTerm: '',
   selectedStatus: 'all',
-  sortField: null,
-  sortOrder: 'none',
-  selectedOrders: [],
+  sortField: 'created_at',
+  sortOrder: 'desc',
+  selectedOrders: [], // Changed back to array
+  bulkActionLoading: false,
+  selectedOrderForDetails: null,
   bulkStatusUpdate: null,
 
   fetchOrders: async () => {
     try {
-      console.log('🔍 fetchOrders - Starting to fetch orders...');
       set({ loading: true, error: null });
 
       const { searchTerm, selectedStatus } = get();
-      console.log('🔍 fetchOrders - Search params:', {
-        searchTerm,
-        selectedStatus,
-      });
 
       const orders = await supabaseApi.getOrders(
         searchTerm || undefined,
         selectedStatus !== 'all' ? selectedStatus : undefined
       );
 
-      console.log('🔍 fetchOrders - Received orders:', orders);
-      console.log('🔍 fetchOrders - Orders count:', orders?.length);
-      set({ orders, loading: false });
+      const { sortField, sortOrder } = get();
+      const sortedOrders = sortOrders(orders, sortField, sortOrder);
+
+      set({
+        orders: sortedOrders,
+        loading: false,
+        error: null,
+      });
     } catch (error) {
-      console.error('🔍 fetchOrders - Error:', error);
+      console.error('Error fetching orders:', error);
       set({
         error:
           error instanceof Error ? error.message : 'Failed to fetch orders',
@@ -105,9 +151,16 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
   setSearchTerm: (term: string) => {
     set({ searchTerm: term });
-    // Debounce search
-    setTimeout(() => {
-      if (get().searchTerm === term) {
+
+    // Clear existing timeout
+    if (searchTimeoutId) {
+      clearTimeout(searchTimeoutId);
+    }
+
+    // Set new timeout
+    searchTimeoutId = setTimeout(() => {
+      const currentTerm = get().searchTerm;
+      if (currentTerm === term) {
         get().fetchOrders();
       }
     }, 300);
@@ -136,38 +189,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
     // Apply sorting to current orders
     const { orders } = get();
-    const sortedOrders = [...orders].sort((a, b) => {
-      if (newOrder === 'none') return 0;
-
-      let aValue: any;
-      let bValue: any;
-
-      switch (field) {
-        case 'created_at':
-          aValue = new Date(a.created_at);
-          bValue = new Date(b.created_at);
-          break;
-        case 'total_amount':
-          aValue = a.total_amount;
-          bValue = b.total_amount;
-          break;
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case 'customer_email':
-          aValue = a.user?.email || '';
-          bValue = b.user?.email || '';
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return newOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return newOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
+    const sortedOrders = sortOrders(orders, field, newOrder);
     set({ orders: sortedOrders });
   },
 
@@ -200,16 +222,27 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     }
   },
 
+  toggleAllOrdersSelection: () => {
+    const { orders, selectedOrders } = get();
+    const allOrderIds = orders.map((order) => order.id);
+
+    if (selectedOrders.length === allOrderIds.length) {
+      set({ selectedOrders: [] });
+    } else {
+      set({ selectedOrders: allOrderIds });
+    }
+  },
+
   selectAllOrders: () => {
     const { orders } = get();
     set({ selectedOrders: orders.map((order) => order.id) });
   },
 
   clearSelection: () => {
-    set({ selectedOrders: [], bulkStatusUpdate: null });
+    set({ selectedOrders: [] });
   },
 
-  bulkUpdateOrderStatus: async (orderIds: string[], status: string) => {
+  bulkUpdateStatus: async (orderIds: string[], status: string) => {
     try {
       await supabaseApi.bulkUpdateOrderStatus(orderIds, status);
 
@@ -230,6 +263,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       console.error('Error bulk updating order status:', error);
       throw error;
     }
+  },
+
+  bulkUpdateOrderStatus: async (orderIds: string[], status: string) => {
+    return get().bulkUpdateStatus(orderIds, status);
   },
 
   bulkDeleteOrders: async (orderIds: string[]) => {
@@ -253,7 +290,11 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     set({ bulkStatusUpdate: status });
   },
 
-  exportOrdersToExcel: () => {
+  setSelectedOrderForDetails: (order: OrderWithItems | null) => {
+    set({ selectedOrderForDetails: order });
+  },
+
+  exportToExcel: () => {
     const { orders } = get();
 
     import('xlsx')
@@ -299,6 +340,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
         console.error('❌ Error exporting orders:', error);
         alert('주문 데이터 내보내기 중 오류가 발생했습니다.');
       });
+  },
+
+  exportOrdersToExcel: () => {
+    return get().exportToExcel();
   },
 
   refreshData: async () => {

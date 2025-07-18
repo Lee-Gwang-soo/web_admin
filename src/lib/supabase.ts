@@ -129,25 +129,25 @@ export const supabaseApi = {
   ): Promise<DashboardKPI> {
     const now = new Date();
     const startDate = new Date();
+    const endDate = new Date();
 
     switch (dateFilter) {
       case 'today':
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'yesterday':
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setDate(now.getDate() - 1);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         startDate.setDate(now.getDate() - 7);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
     }
-
-    const endDate =
-      dateFilter === 'yesterday'
-        ? new Date(startDate.getTime() + 24 * 60 * 60 * 1000)
-        : new Date();
 
     try {
       console.log(
@@ -228,18 +228,23 @@ export const supabaseApi = {
   ): Promise<HourlyRevenue[]> {
     const now = new Date();
     const startDate = new Date();
+    const endDate = new Date();
 
     switch (dateFilter) {
       case 'today':
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'yesterday':
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setDate(now.getDate() - 1);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         startDate.setDate(now.getDate() - 7);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
     }
 
@@ -248,6 +253,7 @@ export const supabaseApi = {
         .from('orders')
         .select('total_amount, created_at, status')
         .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
         .order('created_at');
 
       if (error) throw error;
@@ -285,18 +291,23 @@ export const supabaseApi = {
   ): Promise<Array<{ status: string; count: number; color: string }>> {
     const now = new Date();
     const startDate = new Date();
+    const endDate = new Date();
 
     switch (dateFilter) {
       case 'today':
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'yesterday':
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setDate(now.getDate() - 1);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         startDate.setDate(now.getDate() - 7);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
     }
 
@@ -304,7 +315,8 @@ export const supabaseApi = {
       const { data: orders, error } = await supabase
         .from('orders')
         .select('status, created_at')
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
 
       if (error) throw error;
 
@@ -348,18 +360,23 @@ export const supabaseApi = {
   ): Promise<CategoryRevenue[]> {
     const now = new Date();
     const startDate = new Date();
+    const endDate = new Date();
 
     switch (dateFilter) {
       case 'today':
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'yesterday':
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setDate(now.getDate() - 1);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         startDate.setDate(now.getDate() - 7);
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
     }
 
@@ -385,7 +402,8 @@ export const supabaseApi = {
           const orderDate = new Date(order?.created_at);
           const isValidStatus =
             order?.status !== 'cancelled' && order?.status !== 'returned';
-          const isWithinDateRange = orderDate >= startDate;
+          const isWithinDateRange =
+            orderDate >= startDate && orderDate <= endDate;
           return isValidStatus && isWithinDateRange;
         }) || [];
 

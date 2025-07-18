@@ -37,7 +37,6 @@ import {
 } from '@/components/ui/table';
 import { Product, supabaseApi } from '@/lib/supabase';
 import { SortField, useProductsStore } from '@/store/products-store';
-import { motion } from 'framer-motion';
 import {
   ArrowDown,
   ArrowUp,
@@ -56,7 +55,106 @@ import {
   Trash2,
   TrendingUp,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+
+// Enhanced Image component with error handling
+interface OptimizedImageProps {
+  src: string | undefined;
+  alt: string;
+  width: number;
+  height: number;
+  className?: string;
+  fallbackSrc?: string;
+  unoptimized?: boolean;
+  priority?: boolean;
+  onClick?: () => void;
+}
+
+const OptimizedImage = memo<OptimizedImageProps>(function OptimizedImage({
+  src,
+  alt,
+  width,
+  height,
+  className = '',
+  fallbackSrc = '',
+  unoptimized = false,
+  priority = false,
+  onClick,
+}) {
+  const [imageSrc, setImageSrc] = useState(src);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  // Reset state when src changes
+  useEffect(() => {
+    if (src) {
+      setImageSrc(src);
+      setIsLoading(true);
+      setHasError(false);
+    }
+  }, [src]);
+
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoading(false);
+    // Don't try to set fallback if it's empty or same as current
+    if (fallbackSrc && imageSrc !== fallbackSrc) {
+      setImageSrc(fallbackSrc);
+    } else {
+      // Clear the image src to show placeholder div
+      setImageSrc('');
+    }
+  }, [imageSrc, fallbackSrc]);
+
+  const handleLoad = useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
+
+  // If no valid image source, show placeholder
+  if (!imageSrc || hasError) {
+    return (
+      <div
+        className={`${className} bg-gray-200 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-300 transition-colors`}
+        style={{ width, height }}
+        onClick={onClick}
+        title={hasError ? `이미지 로드 실패: ${alt}` : `이미지 없음: ${alt}`}
+      >
+        <Package className="h-6 w-6 text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative" onClick={onClick}>
+      {isLoading && (
+        <div
+          className={`${className} bg-gray-200 animate-pulse flex items-center justify-center absolute inset-0 z-10 rounded-md`}
+          style={{ width, height }}
+        >
+          <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
+        </div>
+      )}
+      <Image
+        src={imageSrc}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        unoptimized={unoptimized}
+        priority={priority}
+        onError={handleError}
+        onLoad={handleLoad}
+        placeholder="blur"
+        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAhEQACAQIHAQAAAAAAAAAAAAABAgADBAUREiExYVFxkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT4Q6BnFoTg=="
+      />
+    </div>
+  );
+});
+
+// Import motion directly for proper TypeScript support
+import { motion } from 'framer-motion';
 
 // Add Product Form Component
 interface AddProductFormProps {
@@ -66,7 +164,10 @@ interface AddProductFormProps {
   onCancel: () => void;
 }
 
-function AddProductForm({ onSave, onCancel }: AddProductFormProps) {
+const AddProductForm = memo<AddProductFormProps>(function AddProductForm({
+  onSave,
+  onCancel,
+}) {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -78,32 +179,62 @@ function AddProductForm({ onSave, onCancel }: AddProductFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUploading(true);
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setUploading(true);
 
-    try {
-      let imageUrl: string | undefined;
+      try {
+        let imageUrl: string | undefined;
 
-      // Upload image if file is selected
-      if (selectedFile) {
-        imageUrl = await supabaseApi.uploadProductImage(selectedFile);
+        // Upload image if file is selected
+        if (selectedFile) {
+          imageUrl = await supabaseApi.uploadProductImage(selectedFile);
+        }
+
+        onSave({
+          name: formData.name,
+          category: formData.category,
+          price: Number(formData.price),
+          stock: Number(formData.stock),
+          image_url: imageUrl,
+        });
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
+      } finally {
+        setUploading(false);
       }
+    },
+    [formData, selectedFile, onSave]
+  );
 
-      onSave({
-        name: formData.name,
-        category: formData.category,
-        price: Number(formData.price),
-        stock: Number(formData.stock),
-        image_url: imageUrl,
-      });
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-      alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setUploading(false);
-    }
-  };
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setSelectedFile(file);
+        // Create preview URL
+        const reader = new FileReader();
+        reader.onload = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setSelectedFile(null);
+        setImagePreview(null);
+      }
+    },
+    []
+  );
+
+  const handleRemoveImage = useCallback(() => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    // Reset file input
+    const fileInput = document.getElementById('add-image') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -168,43 +299,24 @@ function AddProductForm({ onSave, onCancel }: AddProductFormProps) {
             id="add-image"
             type="file"
             accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setSelectedFile(file);
-                // Create preview URL
-                const reader = new FileReader();
-                reader.onload = () => {
-                  setImagePreview(reader.result as string);
-                };
-                reader.readAsDataURL(file);
-              } else {
-                setSelectedFile(null);
-                setImagePreview(null);
-              }
-            }}
+            onChange={handleFileChange}
             className="cursor-pointer"
           />
           {imagePreview && (
             <div className="relative">
-              <img
+              <OptimizedImage
                 src={imagePreview}
                 alt="미리보기"
-                className="w-32 h-32 object-cover rounded-md border"
+                width={128}
+                height={128}
+                className="object-cover rounded-md border"
+                unoptimized
               />
               <Button
                 type="button"
                 variant="destructive"
                 size="sm"
-                onClick={() => {
-                  setSelectedFile(null);
-                  setImagePreview(null);
-                  // Reset file input
-                  const fileInput = document.getElementById(
-                    'add-image'
-                  ) as HTMLInputElement;
-                  if (fileInput) fileInput.value = '';
-                }}
+                onClick={handleRemoveImage}
                 className="absolute top-1 right-1 h-6 w-6 p-0"
               >
                 ×
@@ -240,7 +352,7 @@ function AddProductForm({ onSave, onCancel }: AddProductFormProps) {
       </div>
     </form>
   );
-}
+});
 
 // Edit Product Form Component
 interface EditProductFormProps {
@@ -249,7 +361,11 @@ interface EditProductFormProps {
   onCancel: () => void;
 }
 
-function EditProductForm({ product, onSave, onCancel }: EditProductFormProps) {
+const EditProductForm = memo<EditProductFormProps>(function EditProductForm({
+  product,
+  onSave,
+  onCancel,
+}) {
   const [formData, setFormData] = useState({
     name: product.name,
     category: product.category,
@@ -262,41 +378,74 @@ function EditProductForm({ product, onSave, onCancel }: EditProductFormProps) {
   const [uploading, setUploading] = useState(false);
   const [keepExistingImage, setKeepExistingImage] = useState(true);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUploading(true);
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setUploading(true);
 
-    try {
-      let imageUrl = product.image_url; // Keep existing image by default
+      try {
+        let imageUrl = product.image_url; // Keep existing image by default
 
-      // If new file is selected, upload it and delete old image
-      if (selectedFile) {
-        imageUrl = await supabaseApi.uploadProductImage(selectedFile);
+        // If new file is selected, upload it and delete old image
+        if (selectedFile) {
+          imageUrl = await supabaseApi.uploadProductImage(selectedFile);
 
-        // Delete old image if it exists
-        if (product.image_url) {
+          // Delete old image if it exists
+          if (product.image_url) {
+            await supabaseApi.deleteProductImage(product.image_url);
+          }
+        } else if (!keepExistingImage && product.image_url) {
+          // If user chose to remove existing image
           await supabaseApi.deleteProductImage(product.image_url);
+          imageUrl = undefined;
         }
-      } else if (!keepExistingImage && product.image_url) {
-        // If user chose to remove existing image
-        await supabaseApi.deleteProductImage(product.image_url);
-        imageUrl = undefined;
-      }
 
-      onSave({
-        ...product,
-        ...formData,
-        price: Number(formData.price),
-        stock: Number(formData.stock),
-        image_url: imageUrl,
-      });
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-      alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setUploading(false);
-    }
-  };
+        onSave({
+          ...product,
+          ...formData,
+          price: Number(formData.price),
+          stock: Number(formData.stock),
+          image_url: imageUrl,
+        });
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
+      } finally {
+        setUploading(false);
+      }
+    },
+    [product, formData, selectedFile, keepExistingImage, onSave]
+  );
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setSelectedFile(file);
+        setKeepExistingImage(false);
+        // Create preview URL
+        const reader = new FileReader();
+        reader.onload = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setSelectedFile(null);
+        setImagePreview(null);
+        setKeepExistingImage(true);
+      }
+    },
+    []
+  );
+
+  const handleRemoveImage = useCallback(() => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    setKeepExistingImage(true);
+    // Reset file input
+    const fileInput = document.getElementById('edit-image') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -355,10 +504,12 @@ function EditProductForm({ product, onSave, onCancel }: EditProductFormProps) {
           {/* Show existing image if any */}
           {product.image_url && keepExistingImage && !selectedFile && (
             <div className="relative">
-              <img
+              <OptimizedImage
                 src={product.image_url}
                 alt={product.name}
-                className="w-32 h-32 object-cover rounded-md border"
+                width={128}
+                height={128}
+                className="object-cover rounded-md border"
               />
               <Button
                 type="button"
@@ -396,48 +547,26 @@ function EditProductForm({ product, onSave, onCancel }: EditProductFormProps) {
             id="edit-image"
             type="file"
             accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setSelectedFile(file);
-                setKeepExistingImage(false);
-                // Create preview URL
-                const reader = new FileReader();
-                reader.onload = () => {
-                  setImagePreview(reader.result as string);
-                };
-                reader.readAsDataURL(file);
-              } else {
-                setSelectedFile(null);
-                setImagePreview(null);
-                setKeepExistingImage(true);
-              }
-            }}
+            onChange={handleFileChange}
             className="cursor-pointer"
           />
 
           {/* Show new image preview */}
           {imagePreview && selectedFile && (
             <div className="relative">
-              <img
+              <OptimizedImage
                 src={imagePreview}
                 alt="새 이미지 미리보기"
-                className="w-32 h-32 object-cover rounded-md border"
+                width={128}
+                height={128}
+                className="object-cover rounded-md border"
+                unoptimized
               />
               <Button
                 type="button"
                 variant="destructive"
                 size="sm"
-                onClick={() => {
-                  setSelectedFile(null);
-                  setImagePreview(null);
-                  setKeepExistingImage(true);
-                  // Reset file input
-                  const fileInput = document.getElementById(
-                    'edit-image'
-                  ) as HTMLInputElement;
-                  if (fileInput) fileInput.value = '';
-                }}
+                onClick={handleRemoveImage}
                 className="absolute top-1 right-1 h-6 w-6 p-0"
               >
                 ×
@@ -474,7 +603,7 @@ function EditProductForm({ product, onSave, onCancel }: EditProductFormProps) {
       </div>
     </form>
   );
-}
+});
 
 export default function ProductsPage() {
   const {
@@ -519,18 +648,19 @@ export default function ProductsPage() {
     refreshData();
   }, [refreshData]);
 
-  const handleAddProduct = async (
-    productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>
-  ) => {
-    try {
-      await addProduct(productData);
-      setShowAddModal(false);
-    } catch (error) {
-      console.error('Failed to add product:', error);
-    }
-  };
+  const handleAddProduct = useCallback(
+    async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+      try {
+        await addProduct(productData);
+        setShowAddModal(false);
+      } catch (error) {
+        console.error('Failed to add product:', error);
+      }
+    },
+    [addProduct]
+  );
 
-  const handleDeleteProduct = async () => {
+  const handleDeleteProduct = useCallback(async () => {
     if (!deletingProduct) return;
 
     try {
@@ -539,18 +669,18 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Failed to delete product:', error);
     }
-  };
+  }, [deletingProduct, deleteProduct]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     try {
       await bulkDeleteProducts(selectedProducts);
       setShowBulkDeleteModal(false);
     } catch (error) {
       console.error('Failed to bulk delete products:', error);
     }
-  };
+  }, [selectedProducts, bulkDeleteProducts]);
 
-  const handleBulkEdit = async () => {
+  const handleBulkEdit = useCallback(async () => {
     if (!bulkEditData) return;
 
     try {
@@ -559,73 +689,93 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Failed to bulk edit products:', error);
     }
-  };
+  }, [selectedProducts, bulkEditData, bulkUpdateProducts]);
 
-  const handleCloneProduct = async (product: Product) => {
-    try {
-      await cloneProduct(product);
-    } catch (error) {
-      console.error('Failed to clone product:', error);
-    }
-  };
+  const handleCloneProduct = useCallback(
+    async (product: Product) => {
+      try {
+        await cloneProduct(product);
+      } catch (error) {
+        console.error('Failed to clone product:', error);
+      }
+    },
+    [cloneProduct]
+  );
 
   const isAllSelected =
     products.length > 0 && selectedProducts.length === products.length;
   const isSomeSelected = selectedProducts.length > 0;
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (isAllSelected) {
       clearSelection();
     } else {
       selectAllProducts();
     }
-  };
+  }, [isAllSelected, clearSelection, selectAllProducts]);
 
-  const formatPrice = (price: number) => {
+  const formatPrice = useCallback((price: number) => {
     return new Intl.NumberFormat('ko-KR', {
       style: 'currency',
       currency: 'KRW',
     }).format(price);
-  };
+  }, []);
 
-  const getStockBadgeVariant = (stock: number) => {
+  const getStockBadgeVariant = useCallback((stock: number) => {
     if (stock === 0) return 'destructive';
     if (stock < 10) return 'outline';
     return 'secondary';
-  };
+  }, []);
 
-  const getStockBadgeText = (stock: number) => {
+  const getStockBadgeText = useCallback((stock: number) => {
     if (stock === 0) return '품절';
     if (stock < 10) return '재고 부족';
     return '재고 충분';
-  };
+  }, []);
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
-    }
+  const getSortIcon = useCallback(
+    (field: SortField) => {
+      if (sortField !== field) {
+        return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+      }
 
-    if (sortOrder === 'asc') {
-      return <ArrowUp className="h-4 w-4 text-blue-600" />;
-    } else if (sortOrder === 'desc') {
-      return <ArrowDown className="h-4 w-4 text-blue-600" />;
-    } else {
-      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  // Calculate KPI data from products
-  const totalProducts = products.length;
-  const totalValue = products.reduce(
-    (sum, product) => sum + product.price * product.stock,
-    0
+      if (sortOrder === 'asc') {
+        return <ArrowUp className="h-4 w-4 text-blue-600" />;
+      } else if (sortOrder === 'desc') {
+        return <ArrowDown className="h-4 w-4 text-blue-600" />;
+      } else {
+        return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+      }
+    },
+    [sortField, sortOrder]
   );
-  const lowStockProducts = products.filter(
-    (product) => product.stock < 10
-  ).length;
-  const outOfStockProducts = products.filter(
-    (product) => product.stock === 0
-  ).length;
+
+  // Calculate KPI data from products - Memoized for performance
+  const kpiData = useMemo(() => {
+    const totalProducts = products.length;
+    const totalValue = products.reduce(
+      (sum, product) => sum + product.price * product.stock,
+      0
+    );
+    const lowStockProducts = products.filter(
+      (product) => product.stock < 10
+    ).length;
+    const outOfStockProducts = products.filter(
+      (product) => product.stock === 0
+    ).length;
+
+    return {
+      totalProducts,
+      totalValue,
+      lowStockProducts,
+      outOfStockProducts,
+    };
+  }, [products]);
+
+  // Memoized selected products filter
+  const selectedProductsData = useMemo(() => {
+    return products.filter((p) => selectedProducts.includes(p.id));
+  }, [products, selectedProducts]);
 
   return (
     <AdminLayout>
@@ -700,7 +850,9 @@ export default function ProductsPage() {
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalProducts}</div>
+                <div className="text-2xl font-bold">
+                  {kpiData.totalProducts}
+                </div>
                 <p className="text-xs text-muted-foreground">등록된 제품</p>
               </CardContent>
             </Card>
@@ -714,7 +866,7 @@ export default function ProductsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatPrice(totalValue)}
+                  {formatPrice(kpiData.totalValue)}
                 </div>
                 <p className="text-xs text-muted-foreground">현재 재고 기준</p>
               </CardContent>
@@ -729,7 +881,7 @@ export default function ProductsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
-                  {lowStockProducts}
+                  {kpiData.lowStockProducts}
                 </div>
                 <p className="text-xs text-muted-foreground">10개 미만 제품</p>
               </CardContent>
@@ -742,7 +894,7 @@ export default function ProductsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {outOfStockProducts}
+                  {kpiData.outOfStockProducts}
                 </div>
                 <p className="text-xs text-muted-foreground">재고 0개 제품</p>
               </CardContent>
@@ -970,11 +1122,16 @@ export default function ProductsPage() {
                             {product.image_url ? (
                               <Dialog>
                                 <DialogTrigger asChild>
-                                  <img
-                                    src={product.image_url}
-                                    alt={product.name}
-                                    className="w-12 h-12 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
-                                  />
+                                  <div className="cursor-pointer hover:opacity-80 transition-opacity">
+                                    <OptimizedImage
+                                      src={product.image_url}
+                                      alt={product.name}
+                                      width={48}
+                                      height={48}
+                                      className="w-12 h-12 object-cover rounded-md"
+                                      priority={false}
+                                    />
+                                  </div>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-2xl">
                                   <DialogHeader>
@@ -984,10 +1141,13 @@ export default function ProductsPage() {
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="flex justify-center">
-                                    <img
+                                    <OptimizedImage
                                       src={product.image_url}
                                       alt={product.name}
+                                      width={640}
+                                      height={480}
                                       className="max-w-full max-h-96 object-contain rounded-lg"
+                                      unoptimized={false}
                                     />
                                   </div>
                                 </DialogContent>
@@ -1258,16 +1418,11 @@ export default function ProductsPage() {
                 <div className="text-sm font-medium mb-2">
                   삭제될 제품 목록:
                 </div>
-                {products
-                  .filter((p) => selectedProducts.includes(p.id))
-                  .map((product) => (
-                    <div
-                      key={product.id}
-                      className="text-sm text-gray-600 py-1"
-                    >
-                      • {product.name} ({product.category})
-                    </div>
-                  ))}
+                {selectedProductsData.map((product) => (
+                  <div key={product.id} className="text-sm text-gray-600 py-1">
+                    • {product.name} ({product.category})
+                  </div>
+                ))}
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
