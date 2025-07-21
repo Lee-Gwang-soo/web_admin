@@ -186,15 +186,15 @@ function OrderDetailsModal({
           </Card>
 
           <Card className="h-fit">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-1">
               <CardTitle className="text-sm font-medium">결제 정보</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-sm text-gray-600 font-medium">
                   총 결제 금액:
                 </span>
-                <span className="text-lg font-bold text-green-600">
+                <span className="text-medium font-bold text-green-600">
                   {order.total_amount.toLocaleString()}원
                 </span>
               </div>
@@ -205,7 +205,7 @@ function OrderDetailsModal({
                 {getStatusBadge(order.status)}
               </div>
               <div className="pt-2 space-y-2">
-                <label className="text-sm font-medium">상태 변경:</label>
+                <div className="text-sm font-medium mb-4">상태 변경</div>
                 <Select onValueChange={handleStatusUpdate} disabled={updating}>
                   <SelectTrigger className="w-full h-10">
                     <SelectValue placeholder="새 상태 선택" />
@@ -328,8 +328,8 @@ function OrderDetailsModal({
               </div>
 
               {/* Summary */}
-              <div className="border-t pt-4 mt-4">
-                <div className="flex justify-between items-center bg-gray-50 rounded-lg p-3">
+              <div className="border-t pt-4 mt-4  ">
+                <div className="flex justify-between items-center  rounded-lg p-3">
                   <div className="text-sm text-gray-600">
                     <span className="font-medium">총 {totalItems}개 상품</span>
                   </div>
@@ -438,17 +438,19 @@ export default function OrdersPage() {
 
   return (
     <AdminLayout>
-      <div className="h-full bg-gray-50">
+      <div className="h-full bg-background dark:bg-background">
         {/* Page Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border-b border-gray-200 px-6 py-4"
+          className="bg-card dark:bg-card border-b border-border dark:border-border px-6 py-4"
         >
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">주문 관리</h1>
-              <p className="text-sm text-gray-600">
+              <h1 className="text-2xl font-bold text-foreground dark:text-foreground">
+                주문 관리
+              </h1>
+              <p className="text-sm text-foreground dark:text-foreground">
                 주문 현황을 모니터링하고 상태를 관리합니다
               </p>
             </div>
@@ -470,10 +472,10 @@ export default function OrdersPage() {
                   <ShoppingCart className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-foreground dark:text-foreground">
                     총 주문 수
                   </p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-foreground dark:text-foreground">
                     {totalOrders}
                   </p>
                 </div>
@@ -486,8 +488,10 @@ export default function OrdersPage() {
                   <DollarSign className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">총 매출</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-foreground dark:text-foreground">
+                    총 매출
+                  </p>
+                  <p className="text-2xl font-bold text-foreground dark:text-foreground">
                     {totalRevenue.toLocaleString()}원
                   </p>
                 </div>
@@ -500,8 +504,10 @@ export default function OrdersPage() {
                   <Package className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">처리 대기</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-foreground dark:text-foreground">
+                    처리 대기
+                  </p>
+                  <p className="text-2xl font-bold text-foreground dark:text-foreground">
                     {pendingOrders}
                   </p>
                 </div>
@@ -514,8 +520,10 @@ export default function OrdersPage() {
                   <CheckSquare className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">배송 완료</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-foreground dark:text-foreground">
+                    배송 완료
+                  </p>
+                  <p className="text-2xl font-bold text-foreground dark:text-foreground">
                     {completedOrders}
                   </p>
                 </div>
@@ -877,10 +885,7 @@ export default function OrdersPage() {
                           </TableRow>
                         ) : (
                           orders.map((order) => (
-                            <TableRow
-                              key={order.id}
-                              className="hover:bg-gray-50"
-                            >
+                            <TableRow key={order.id}>
                               <TableCell className="w-[5%]">
                                 <Button
                                   variant="ghost"

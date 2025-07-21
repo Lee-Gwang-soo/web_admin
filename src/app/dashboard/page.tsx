@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useDashboardStore } from '@/store/dashboard-store';
+import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
 import {
   Calendar,
@@ -35,6 +36,7 @@ import {
 import { useEffect } from 'react';
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const {
     kpiData,
     chartData,
@@ -66,22 +68,22 @@ export default function DashboardPage() {
       .then((XLSX) => {
         // KPI 데이터 시트
         const kpiData_sheet = [
-          ['지표', '값'],
-          ['오늘 매출', kpiData.todayRevenue],
-          ['오늘 주문 수', kpiData.todayOrders],
-          ['활성 사용자 수', kpiData.activeUsers],
-          ['전환율', kpiData.conversionRate],
+          [t('common.metrics'), t('common.value')],
+          [t('dashboard.kpi.todayRevenue'), kpiData.todayRevenue],
+          [t('dashboard.kpi.todayOrders'), kpiData.todayOrders],
+          [t('dashboard.kpi.activeUsers'), kpiData.activeUsers],
+          [t('dashboard.kpi.conversionRate'), kpiData.conversionRate],
         ];
 
         // 시간별 매출 데이터 시트
         const hourlyRevenueData = [
-          ['시간', '매출'],
+          [t('common.time'), t('common.revenue')],
           ...chartData.hourlyRevenue.map((item) => [item.hour, item.revenue]),
         ];
 
         // 주문 상태 분포 데이터 시트
         const orderStatusData = [
-          ['상태', '수량'],
+          [t('orders.status'), t('common.count')],
           ...chartData.orderStatusDistribution.map((item) => [
             item.status,
             item.count,
@@ -90,7 +92,7 @@ export default function DashboardPage() {
 
         // 카테고리별 매출 데이터 시트
         const categoryRevenueData = [
-          ['카테고리', '매출'],
+          [t('products.category'), t('common.revenue')],
           ...chartData.categoryRevenue.map((item) => [
             item.category,
             item.revenue,
@@ -103,17 +105,29 @@ export default function DashboardPage() {
         // KPI 워크시트 생성 및 추가
         const kpiWorksheet = XLSX.utils.aoa_to_sheet(kpiData_sheet);
         kpiWorksheet['!cols'] = [{ wch: 20 }, { wch: 15 }];
-        XLSX.utils.book_append_sheet(workbook, kpiWorksheet, 'KPI 지표');
+        XLSX.utils.book_append_sheet(
+          workbook,
+          kpiWorksheet,
+          t('dashboard.kpi.title')
+        );
 
         // 시간별 매출 워크시트 생성 및 추가
         const hourlyWorksheet = XLSX.utils.aoa_to_sheet(hourlyRevenueData);
         hourlyWorksheet['!cols'] = [{ wch: 10 }, { wch: 15 }];
-        XLSX.utils.book_append_sheet(workbook, hourlyWorksheet, '시간별 매출');
+        XLSX.utils.book_append_sheet(
+          workbook,
+          hourlyWorksheet,
+          t('dashboard.charts.hourlyRevenue')
+        );
 
         // 주문 상태 워크시트 생성 및 추가
         const statusWorksheet = XLSX.utils.aoa_to_sheet(orderStatusData);
         statusWorksheet['!cols'] = [{ wch: 15 }, { wch: 10 }];
-        XLSX.utils.book_append_sheet(workbook, statusWorksheet, '주문 상태');
+        XLSX.utils.book_append_sheet(
+          workbook,
+          statusWorksheet,
+          t('orders.status')
+        );
 
         // 카테고리별 매출 워크시트 생성 및 추가
         const categoryWorksheet = XLSX.utils.aoa_to_sheet(categoryRevenueData);
@@ -121,7 +135,7 @@ export default function DashboardPage() {
         XLSX.utils.book_append_sheet(
           workbook,
           categoryWorksheet,
-          '카테고리별 매출'
+          t('dashboard.charts.categoryRevenue')
         );
 
         // Excel 파일 생성 및 다운로드
@@ -132,7 +146,7 @@ export default function DashboardPage() {
       })
       .catch((error) => {
         console.error('❌ Error exporting dashboard data:', error);
-        alert('데이터 내보내기 중 오류가 발생했습니다.');
+        alert(t('messages.dataLoadError'));
       });
   };
 
@@ -145,35 +159,58 @@ export default function DashboardPage() {
     }).format(date);
   };
 
+  const getKPITitle = (type: 'revenue' | 'orders') => {
+    const baseKey =
+      type === 'revenue'
+        ? 'dashboard.kpi.todayRevenue'
+        : 'dashboard.kpi.todayOrders';
+
+    switch (dateFilter) {
+      case 'today':
+        return t(baseKey);
+      case 'yesterday':
+        return t(baseKey.replace('today', 'yesterday'));
+      case 'week':
+        return t(baseKey.replace('today', 'week'));
+      default:
+        return t(baseKey);
+    }
+  };
+
   return (
     <AdminLayout>
-      <div className="h-full bg-gray-50">
+      <div className="h-full bg-background dark:bg-background">
         {/* Page Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border-b border-gray-200 px-6 py-4"
+          className="bg-card dark:bg-card border-b border-border dark:border-border px-6 py-4"
         >
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
-              <p className="text-sm text-gray-600">
-                실시간 비즈니스 인사이트와 데이터 모니터링
+              <h1 className="text-2xl font-bold text-foreground dark:text-foreground">
+                {t('dashboard.title')}
+              </h1>
+              <p className="text-sm text-muted-foreground dark:text-muted-foreground">
+                {t('dashboard.subtitle')}
               </p>
             </div>
 
             <div className="flex items-center space-x-4">
               {lastUpdated && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground dark:text-muted-foreground">
                   <RefreshCw className="h-4 w-4" />
-                  <span>마지막 업데이트: {formatLastUpdated(lastUpdated)}</span>
+                  <span>
+                    {t('dashboard.lastUpdated')}:{' '}
+                    {formatLastUpdated(lastUpdated)}
+                  </span>
                 </div>
               )}
               <Badge
                 variant="outline"
-                className="text-green-600 border-green-200"
+                className="text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
               >
-                실시간 모니터링 중
+                {t('dashboard.realTimeMonitoring')}
               </Badge>
             </div>
           </div>
@@ -189,7 +226,7 @@ export default function DashboardPage() {
             className="flex justify-between items-center mb-6"
           >
             <div className="flex items-center space-x-4">
-              <Calendar className="h-5 w-5 text-gray-500" />
+              <Calendar className="h-5 w-5 text-muted-foreground dark:text-muted-foreground" />
               <Select
                 value={dateFilter}
                 onValueChange={(value: 'today' | 'yesterday' | 'week') =>
@@ -200,9 +237,15 @@ export default function DashboardPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="today">오늘</SelectItem>
-                  <SelectItem value="yesterday">어제</SelectItem>
-                  <SelectItem value="week">최근 7일</SelectItem>
+                  <SelectItem value="today">
+                    {t('dashboard.dateFilter.today')}
+                  </SelectItem>
+                  <SelectItem value="yesterday">
+                    {t('dashboard.dateFilter.yesterday')}
+                  </SelectItem>
+                  <SelectItem value="week">
+                    {t('dashboard.dateFilter.week')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -212,20 +255,20 @@ export default function DashboardPage() {
                 variant="outline"
                 onClick={fetchDashboardData}
                 disabled={loading}
-                className="cursor-pointer hover:bg-gray-50 transition-colors"
+                className="cursor-pointer hover:bg-accent dark:hover:bg-accent transition-colors"
               >
                 <RefreshCw
                   className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
                 />
-                새로고침
+                {t('common.refresh')}
               </Button>
               <Button
                 variant="outline"
                 onClick={handleExportData}
-                className="cursor-pointer hover:bg-gray-50 transition-colors"
+                className="cursor-pointer hover:bg-accent dark:hover:bg-accent transition-colors"
               >
                 <Download className="h-4 w-4 mr-2" />
-                Excel로 내보내기
+                {t('dashboard.exportExcel')}
               </Button>
             </div>
           </motion.div>
@@ -238,52 +281,40 @@ export default function DashboardPage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
           >
             <KPICard
-              title={
-                dateFilter === 'today'
-                  ? '오늘 매출'
-                  : dateFilter === 'yesterday'
-                    ? '어제 매출'
-                    : '최근 7일 매출'
-              }
+              title={getKPITitle('revenue')}
               value={kpiData.todayRevenue}
               change={12.5}
               trend="up"
               icon={DollarSign}
               loading={loading}
-              description="전일 대비 증가"
+              description={t('dashboard.kpi.previousDayComparison')}
             />
             <KPICard
-              title={
-                dateFilter === 'today'
-                  ? '오늘 주문 수'
-                  : dateFilter === 'yesterday'
-                    ? '어제 주문 수'
-                    : '최근 7일 주문 수'
-              }
+              title={getKPITitle('orders')}
               value={kpiData.todayOrders}
               change={8.2}
               trend="up"
               icon={ShoppingCart}
               loading={loading}
-              description="새로운 주문"
+              description={t('dashboard.kpi.newOrders')}
             />
             <KPICard
-              title="활성 사용자 수"
+              title={t('dashboard.kpi.activeUsers')}
               value={kpiData.activeUsers}
               change={-2.1}
               trend="down"
               icon={Users}
               loading={loading}
-              description="현재 접속 중"
+              description={t('dashboard.kpi.currentlyOnline')}
             />
             <KPICard
-              title="전환율"
+              title={t('dashboard.kpi.conversionRate')}
               value={kpiData.conversionRate}
               change={5.7}
               trend="up"
               icon={TrendingUp}
               loading={loading}
-              description="방문자 대비"
+              description={t('dashboard.kpi.visitorComparison')}
             />
           </motion.div>
 
@@ -334,25 +365,35 @@ export default function DashboardPage() {
           >
             <Card>
               <CardHeader>
-                <CardTitle>시스템 정보</CardTitle>
-                <CardDescription>대시보드 상태 및 설정 정보</CardDescription>
+                <CardTitle>{t('dashboard.systemInfo.title')}</CardTitle>
+                <CardDescription>
+                  {t('dashboard.systemInfo.description')}
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">자동 새로고침</span>
-                  <Badge variant="secondary">1분 간격</Badge>
+                  <span className="text-sm font-medium">
+                    {t('dashboard.systemInfo.autoRefresh')}
+                  </span>
+                  <Badge variant="secondary">
+                    {t('dashboard.systemInfo.oneMinuteInterval')}
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">데이터 소스</span>
+                  <span className="text-sm font-medium">
+                    {t('dashboard.systemInfo.dataSource')}
+                  </span>
                   <Badge variant="secondary">Supabase</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">연결 상태</span>
+                  <span className="text-sm font-medium">
+                    {t('dashboard.systemInfo.connectionStatus')}
+                  </span>
                   <Badge
                     variant="secondary"
-                    className="text-green-600 bg-green-100"
+                    className="text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20"
                   >
-                    연결됨
+                    {t('dashboard.systemInfo.connected')}
                   </Badge>
                 </div>
               </CardContent>

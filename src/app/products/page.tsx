@@ -239,12 +239,12 @@ const AddProductForm = memo<AddProductFormProps>(function AddProductForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="add-name">제품명</Label>
+        <Label htmlFor="add-name">상품명</Label>
         <Input
           id="add-name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="제품명을 입력하세요"
+          placeholder="상품명을 입력하세요"
           required
         />
       </div>
@@ -450,7 +450,7 @@ const EditProductForm = memo<EditProductFormProps>(function EditProductForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="edit-name">제품명</Label>
+        <Label htmlFor="edit-name">상품명</Label>
         <Input
           id="edit-name"
           value={formData.name}
@@ -779,18 +779,20 @@ export default function ProductsPage() {
 
   return (
     <AdminLayout>
-      <div className="h-full bg-gray-50">
+      <div className="h-full bg-background dark:bg-background">
         {/* Page Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border-b border-gray-200 px-6 py-4"
+          className="bg-card dark:bg-card border-b border-border dark:border-border px-6 py-4"
         >
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">제품 관리</h1>
-              <p className="text-sm text-gray-600">
-                재고 현황과 제품 정보를 관리하세요
+              <h1 className="text-2xl font-bold text-foreground dark:text-foreground">
+                상품 관리
+              </h1>
+              <p className="text-sm font-medium text-muted-foreground dark:text-muted-foreground">
+                재고 현황과 상품 정보를 관리하세요
               </p>
             </div>
 
@@ -823,11 +825,12 @@ export default function ProductsPage() {
               </Button>
 
               <Button
+                variant="outline"
                 onClick={() => setShowAddModal(true)}
-                className="cursor-pointer hover:bg-blue-600 transition-colors"
+                className="cursor-pointer hover:bg-gray-50 transition-colors"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                제품 추가
+                상품 추가
               </Button>
             </div>
           </div>
@@ -845,7 +848,7 @@ export default function ProductsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  총 제품 수
+                  총 상품 수
                 </CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -853,7 +856,7 @@ export default function ProductsPage() {
                 <div className="text-2xl font-bold">
                   {kpiData.totalProducts}
                 </div>
-                <p className="text-xs text-muted-foreground">등록된 제품</p>
+                <p className="text-xs text-muted-foreground">등록된 상품</p>
               </CardContent>
             </Card>
 
@@ -875,7 +878,7 @@ export default function ProductsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  재고 부족 제품
+                  재고 부족 상품
                 </CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -883,20 +886,20 @@ export default function ProductsPage() {
                 <div className="text-2xl font-bold text-orange-600">
                   {kpiData.lowStockProducts}
                 </div>
-                <p className="text-xs text-muted-foreground">10개 미만 제품</p>
+                <p className="text-xs text-muted-foreground">10개 미만 상품</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">품절 제품</CardTitle>
+                <CardTitle className="text-sm font-medium">품절 상품</CardTitle>
                 <Trash2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
                   {kpiData.outOfStockProducts}
                 </div>
-                <p className="text-xs text-muted-foreground">재고 0개 제품</p>
+                <p className="text-xs text-muted-foreground">재고 0개 상품</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -906,11 +909,11 @@ export default function ProductsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border p-4 mb-6"
+            className="rounded-lg shadow-sm border p-4 mb-6"
           >
             <div className="flex flex-col sm:flex-row gap-2">
               {/* 카테고리 드롭다운 - 왼쪽 */}
-              <div className="sm:w-48">
+              <div className="sm:w-36">
                 <Select
                   value={selectedCategory}
                   onValueChange={setSelectedCategory}
@@ -935,9 +938,9 @@ export default function ProductsPage() {
               {/* 검색창 - 오른쪽 */}
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4" />
                   <Input
-                    placeholder="제품명으로 검색..."
+                    placeholder="상품명으로 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -1001,9 +1004,9 @@ export default function ProductsPage() {
           >
             <Card>
               <CardHeader>
-                <CardTitle>제품 목록</CardTitle>
+                <CardTitle>상품 목록</CardTitle>
                 <CardDescription>
-                  총 {products.length}개의 제품이 등록되어 있습니다
+                  총 {products.length}개의 상품이 등록되어 있습니다
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1015,7 +1018,7 @@ export default function ProductsPage() {
                 ) : products.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>등록된 제품이 없습니다.</p>
+                    <p>등록된 상품이 없습니다.</p>
                   </div>
                 ) : (
                   <Table>
@@ -1042,7 +1045,7 @@ export default function ProductsPage() {
                             className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
                             onClick={() => setSorting('name')}
                           >
-                            제품명
+                            상품명
                             {getSortIcon('name')}
                           </Button>
                         </TableHead>
@@ -1137,7 +1140,7 @@ export default function ProductsPage() {
                                   <DialogHeader>
                                     <DialogTitle>{product.name}</DialogTitle>
                                     <DialogDescription>
-                                      제품 이미지
+                                      상품 이미지
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="flex justify-center">
@@ -1153,7 +1156,7 @@ export default function ProductsPage() {
                                 </DialogContent>
                               </Dialog>
                             ) : (
-                              <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-md flex items-center justify-center">
                                 <Package className="h-6 w-6 text-gray-400" />
                               </div>
                             )}
@@ -1196,7 +1199,7 @@ export default function ProductsPage() {
                                   <DialogHeader>
                                     <DialogTitle>{product.name}</DialogTitle>
                                     <DialogDescription>
-                                      제품 상세 정보
+                                      상품 상세 정보
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="space-y-4">
@@ -1260,7 +1263,7 @@ export default function ProductsPage() {
                                 </DialogTrigger>
                                 <DialogContent className="max-w-md">
                                   <DialogHeader>
-                                    <DialogTitle>제품 수정</DialogTitle>
+                                    <DialogTitle>상품 수정</DialogTitle>
                                     <DialogDescription>
                                       {editingProduct?.name} 정보를 수정합니다
                                     </DialogDescription>
@@ -1306,8 +1309,8 @@ export default function ProductsPage() {
         <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>제품 추가</DialogTitle>
-              <DialogDescription>새로운 제품을 등록합니다</DialogDescription>
+              <DialogTitle>상품 추가</DialogTitle>
+              <DialogDescription>새로운 상품을 등록합니다</DialogDescription>
             </DialogHeader>
             <AddProductForm
               onSave={handleAddProduct}
@@ -1323,9 +1326,9 @@ export default function ProductsPage() {
         >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>제품 삭제</DialogTitle>
+              <DialogTitle>상품 삭제</DialogTitle>
               <DialogDescription>
-                정말로 &quot;{deletingProduct?.name}&quot; 제품을
+                정말로 &quot;{deletingProduct?.name}&quot; 상품을
                 삭제하시겠습니까?
               </DialogDescription>
             </DialogHeader>
@@ -1338,7 +1341,7 @@ export default function ProductsPage() {
                       삭제 주의사항
                     </h4>
                     <p className="text-sm text-red-600 mt-1">
-                      삭제된 제품은 복구할 수 없습니다. 신중하게 결정해주세요.
+                      삭제된 상품은 복구할 수 없습니다. 신중하게 결정해주세요.
                     </p>
                   </div>
                 </div>
@@ -1347,7 +1350,7 @@ export default function ProductsPage() {
               {deletingProduct && (
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium">제품명:</span>
+                    <span className="text-sm font-medium">상품명:</span>
                     <span className="text-sm">{deletingProduct.name}</span>
                   </div>
                   <div className="flex justify-between">
@@ -1394,9 +1397,9 @@ export default function ProductsPage() {
         >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>제품 일괄 삭제</DialogTitle>
+              <DialogTitle>상품 일괄 삭제</DialogTitle>
               <DialogDescription>
-                선택된 {selectedProducts.length}개 제품을 삭제하시겠습니까?
+                선택된 {selectedProducts.length}개 상품을 삭제하시겠습니까?
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -1408,7 +1411,7 @@ export default function ProductsPage() {
                       일괄 삭제 주의사항
                     </h4>
                     <p className="text-sm text-red-600 mt-1">
-                      삭제된 제품들은 복구할 수 없습니다. 신중하게 결정해주세요.
+                      삭제된 상품들은 복구할 수 없습니다. 신중하게 결정해주세요.
                     </p>
                   </div>
                 </div>
@@ -1416,7 +1419,7 @@ export default function ProductsPage() {
 
               <div className="max-h-32 overflow-y-auto">
                 <div className="text-sm font-medium mb-2">
-                  삭제될 제품 목록:
+                  삭제될 상품 목록:
                 </div>
                 {selectedProductsData.map((product) => (
                   <div key={product.id} className="text-sm text-gray-600 py-1">
@@ -1449,9 +1452,9 @@ export default function ProductsPage() {
         <Dialog open={showBulkEditModal} onOpenChange={setShowBulkEditModal}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>제품 일괄 수정</DialogTitle>
+              <DialogTitle>상품 일괄 수정</DialogTitle>
               <DialogDescription>
-                선택된 {selectedProducts.length}개 제품을 수정합니다
+                선택된 {selectedProducts.length}개 상품을 수정합니다
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">

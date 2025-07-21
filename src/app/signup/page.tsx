@@ -1,11 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -13,24 +9,32 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/store/auth-store';
+import { useTranslation } from '@/store/i18n-store';
+import { motion } from 'framer-motion';
 import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle,
   Eye,
   EyeOff,
-  Mail,
-  Lock,
-  AlertCircle,
-  CheckCircle,
-  User,
-  ArrowRight,
+  Github,
   Info,
+  Lock,
+  Mail,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp, signIn, user, error, clearError } = useAuthStore();
+  const { signUp, signIn, signInWithGitHub, user, error, loading, clearError } =
+    useAuthStore();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,14 +43,16 @@ export default function SignUpPage() {
   const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGitHubLoading, setIsGitHubLoading] = useState(false);
   const [autoLogin, setAutoLogin] = useState(true);
 
-  // 이미 로그인된 사용자는 대시보드로 리다이렉트
+  // 이미 로그인된 사용자는 대시보드로 리다이렉트 (loading 완료 후)
   useEffect(() => {
-    if (user) {
+    if (!loading && user) {
+      console.log('✅ 인증 완료, 대시보드로 리다이렉트:', user.email);
       router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
   // 에러 상태 동기화
   useEffect(() => {
@@ -58,7 +64,7 @@ export default function SignUpPage() {
 
   const validatePassword = (password: string) => {
     if (password.length < 6) {
-      return '비밀번호는 최소 6자 이상이어야 합니다.';
+      return t('auth.passwordMinLength');
     }
     return '';
   };
@@ -66,7 +72,7 @@ export default function SignUpPage() {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return '올바른 이메일 주소를 입력해주세요.';
+      return t('auth.invalidEmail');
     }
     return '';
   };
@@ -79,7 +85,7 @@ export default function SignUpPage() {
 
     // Validation
     if (!email || !password || !confirmPassword) {
-      setLocalError('모든 필드를 입력해주세요.');
+      setLocalError(t('auth.allFieldsRequired'));
       setIsLoading(false);
       return;
     }
@@ -99,7 +105,7 @@ export default function SignUpPage() {
     }
 
     if (password !== confirmPassword) {
-      setLocalError('비밀번호가 일치하지 않습니다.');
+      setLocalError(t('auth.passwordMismatch'));
       setIsLoading(false);
       return;
     }
@@ -116,7 +122,7 @@ export default function SignUpPage() {
           }, 3000);
         } else {
           // 즉시 로그인 가능한 경우
-          setSuccess('🎉 회원가입이 완료되었습니다!');
+          setSuccess(t('auth.signupSuccess'));
 
           if (autoLogin) {
             setSuccess('회원가입 완료! 자동으로 로그인하는 중...');
@@ -124,7 +130,7 @@ export default function SignUpPage() {
             setTimeout(async () => {
               const loginResult = await signIn(email, password);
               if (loginResult.success) {
-                setSuccess('✅ 로그인 성공! 대시보드로 이동합니다...');
+                setSuccess(t('auth.loginSuccess'));
                 setTimeout(() => {
                   router.push('/dashboard');
                 }, 1000);
@@ -144,18 +150,40 @@ export default function SignUpPage() {
           }
         }
       } else {
-        setLocalError(result.error || '회원가입에 실패했습니다.');
+        setLocalError(result.error || t('auth.signupError'));
       }
     } catch (error) {
       console.error('회원가입 오류:', error);
-      setLocalError('회원가입 중 오류가 발생했습니다.');
+      setLocalError(t('auth.signupError'));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGitHubSignUp = async () => {
+    setLocalError('');
+    setSuccess('');
+    setIsGitHubLoading(true);
+
+    try {
+      const result = await signInWithGitHub();
+
+      if (result.success) {
+        setSuccess(t('auth.githubRedirecting'));
+        // OAuth 리다이렉트가 시작되므로 로딩 상태를 유지
+      } else {
+        setLocalError(result.error || t('auth.githubSignupError'));
+        setIsGitHubLoading(false);
+      }
+    } catch (error) {
+      console.error('GitHub 회원가입 에러:', error);
+      setLocalError(t('auth.githubSignupFailure'));
+      setIsGitHubLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -181,8 +209,8 @@ export default function SignUpPage() {
               )}
 
               {success && (
-                <Alert className="border-green-200 bg-green-50 text-green-800">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
@@ -190,7 +218,7 @@ export default function SignUpPage() {
               <div className="space-y-2">
                 <Label htmlFor="email">이메일</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="email"
                     type="email"
@@ -198,7 +226,7 @@ export default function SignUpPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
-                    disabled={isLoading}
+                    disabled={isLoading || isGitHubLoading}
                     autoComplete="email"
                     required
                   />
@@ -208,7 +236,7 @@ export default function SignUpPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">비밀번호</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -216,15 +244,15 @@ export default function SignUpPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
-                    disabled={isLoading}
+                    disabled={isLoading || isGitHubLoading}
                     autoComplete="new-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 cursor-pointer"
-                    disabled={isLoading}
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 cursor-pointer"
+                    disabled={isLoading || isGitHubLoading}
                   >
                     {showPassword ? <EyeOff /> : <Eye />}
                   </button>
@@ -234,7 +262,7 @@ export default function SignUpPage() {
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">비밀번호 확인</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -242,15 +270,15 @@ export default function SignUpPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pl-10 pr-10"
-                    disabled={isLoading}
+                    disabled={isLoading || isGitHubLoading}
                     autoComplete="new-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 cursor-pointer"
-                    disabled={isLoading}
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 cursor-pointer"
+                    disabled={isLoading || isGitHubLoading}
                   >
                     {showConfirmPassword ? <EyeOff /> : <Eye />}
                   </button>
@@ -264,15 +292,22 @@ export default function SignUpPage() {
                   id="autoLogin"
                   checked={autoLogin}
                   onChange={(e) => setAutoLogin(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                  disabled={isLoading}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  disabled={isLoading || isGitHubLoading}
                 />
-                <Label htmlFor="autoLogin" className="text-sm text-gray-600">
+                <Label
+                  htmlFor="autoLogin"
+                  className="text-sm text-gray-600 dark:text-gray-400"
+                >
                   회원가입 후 자동으로 로그인 (이메일 확인 불필요한 경우)
                 </Label>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || isGitHubLoading}
+              >
                 {isLoading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -288,10 +323,47 @@ export default function SignUpPage() {
               </Button>
             </form>
 
+            {/* GitHub 회원가입 구분선 */}
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t dark:border-gray-700" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    {t('auth.or')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* GitHub 회원가입 버튼 */}
+            <div className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGitHubSignUp}
+                disabled={isLoading || isGitHubLoading}
+              >
+                {isGitHubLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                    {t('auth.githubSignupLoading')}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <Github className="h-4 w-4 mr-2" />
+                    {t('auth.signUpWithGitHub')}
+                  </div>
+                )}
+              </Button>
+            </div>
+
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t dark:border-gray-700" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
@@ -301,16 +373,17 @@ export default function SignUpPage() {
               </div>
 
               {/* Supabase 회원가입 정보 */}
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700 font-medium mb-2 flex items-center">
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-2 flex items-center">
                   <Info className="h-4 w-4 mr-1" />
                   Supabase 회원가입 안내
                 </p>
-                <div className="text-xs text-blue-600 space-y-1">
+                <div className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
                   <p>• 이메일 주소로 계정이 생성됩니다</p>
+                  <p>• GitHub OAuth로 간편 회원가입</p>
                   <p>• 이메일 확인이 필요할 수 있습니다</p>
                   <p>• 보안을 위해 강력한 비밀번호를 사용하세요</p>
-                  <p className="text-blue-500 mt-2">
+                  <p className="text-blue-500 dark:text-blue-400 mt-2">
                     회원가입 후 이메일을 확인해주세요.
                   </p>
                 </div>
@@ -318,13 +391,13 @@ export default function SignUpPage() {
 
               {/* 기존 계정으로 로그인 */}
               <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
-                  이미 계정이 있으신가요?{' '}
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('auth.alreadyHaveAccount')}{' '}
                   <Link
                     href="/login"
-                    className="text-blue-600 hover:text-blue-500 font-medium"
+                    className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                   >
-                    로그인하기
+                    {t('auth.loginHere')}
                   </Link>
                 </p>
               </div>

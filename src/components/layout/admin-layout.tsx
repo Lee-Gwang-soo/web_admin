@@ -2,8 +2,8 @@
 
 import { Sidebar } from '@/components/ui/sidebar';
 import { useAuthStore } from '@/store/auth-store';
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -36,7 +36,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen">
       <Sidebar />
       <main className="flex-1 overflow-auto">
         <div className="h-full">{children}</div>

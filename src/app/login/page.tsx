@@ -1,11 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -13,37 +9,89 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/store/auth-store';
+import { useTranslation } from '@/store/i18n-store';
+import { motion } from 'framer-motion';
 import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle,
   Eye,
   EyeOff,
-  Mail,
+  Github,
   Lock,
-  AlertCircle,
-  CheckCircle,
   LogIn,
-  ArrowRight,
+  Mail,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, user, error, clearError } = useAuthStore();
+  const { signIn, signInWithGitHub, user, error, loading, clearError } =
+    useAuthStore();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGitHubLoading, setIsGitHubLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // 이미 로그인된 사용자는 대시보드로 리다이렉트
+  // 이미 로그인된 사용자는 대시보드로 리다이렉트 (loading 완료 후)
   useEffect(() => {
-    if (user) {
-      router.push('/dashboard');
+    const debugMessage = `🔍 로그인 페이지 - 인증 상태 확인: { loading: ${loading}, user: ${user?.email || 'null'}, hasUser: ${!!user} }`;
+    console.log(debugMessage);
+
+    // localStorage에도 저장
+    try {
+      const logs = JSON.parse(localStorage.getItem('auth-debug-logs') || '[]');
+      logs.push(`[${new Date().toISOString()}] ${debugMessage}`);
+      if (logs.length > 100) logs.shift();
+      localStorage.setItem('auth-debug-logs', JSON.stringify(logs));
+    } catch (e) {
+      // localStorage 오류 무시
     }
-  }, [user, router]);
+
+    if (!loading && user) {
+      const successMessage = `✅ 인증 완료, 대시보드로 리다이렉트: ${user.email}`;
+      console.log(successMessage);
+
+      // localStorage에도 저장
+      try {
+        const logs = JSON.parse(
+          localStorage.getItem('auth-debug-logs') || '[]'
+        );
+        logs.push(`[${new Date().toISOString()}] ${successMessage}`);
+        if (logs.length > 100) logs.shift();
+        localStorage.setItem('auth-debug-logs', JSON.stringify(logs));
+      } catch (e) {
+        // localStorage 오류 무시
+      }
+
+      router.push('/dashboard');
+    } else if (!loading && !user) {
+      const infoMessage = 'ℹ️ 로딩 완료, 사용자 없음 - 로그인 페이지 유지';
+      console.log(infoMessage);
+
+      // localStorage에도 저장
+      try {
+        const logs = JSON.parse(
+          localStorage.getItem('auth-debug-logs') || '[]'
+        );
+        logs.push(`[${new Date().toISOString()}] ${infoMessage}`);
+        if (logs.length > 100) logs.shift();
+        localStorage.setItem('auth-debug-logs', JSON.stringify(logs));
+      } catch (e) {
+        // localStorage 오류 무시
+      }
+    }
+  }, [user, loading, router]);
 
   // 저장된 로그인 정보 복원
   useEffect(() => {
@@ -64,6 +112,47 @@ export default function LoginPage() {
     }
   }, [error, clearError]);
 
+  // URL에서 OAuth 에러 확인 (컴포넌트 마운트 시 한 번만)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+      const urlError = urlParams.get('error') || hashParams.get('error');
+      const errorDescription =
+        urlParams.get('error_description') ||
+        hashParams.get('error_description');
+      const errorCode =
+        urlParams.get('error_code') || hashParams.get('error_code');
+
+      if (urlError) {
+        console.log('🚨 OAuth 에러 감지:', {
+          urlError,
+          errorCode,
+          errorDescription,
+        });
+
+        let friendlyMessage = '';
+        if (
+          errorDescription?.includes('Multiple accounts with the same email')
+        ) {
+          friendlyMessage =
+            '같은 이메일로 이미 계정이 존재합니다. 기존 이메일/패스워드 로그인을 사용하거나, 관리자에게 계정 연결을 요청하세요.';
+        } else if (urlError === 'server_error') {
+          friendlyMessage = `서버 오류가 발생했습니다: ${errorDescription || '알 수 없는 오류'}`;
+        } else {
+          friendlyMessage = `GitHub 로그인 실패: ${errorDescription || urlError}`;
+        }
+
+        setLocalError(friendlyMessage);
+
+        // URL에서 에러 파라미터 제거
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+  }, []); // 빈 dependency array로 마운트 시에만 실행
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
@@ -71,7 +160,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     if (!email || !password) {
-      setLocalError('이메일과 비밀번호를 입력해주세요.');
+      setLocalError(t('auth.allFieldsRequired'));
       setIsLoading(false);
       return;
     }
@@ -79,7 +168,7 @@ export default function LoginPage() {
     // 이메일 형식 검증
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setLocalError('올바른 이메일 주소를 입력해주세요.');
+      setLocalError(t('auth.invalidEmail'));
       setIsLoading(false);
       return;
     }
@@ -97,26 +186,46 @@ export default function LoginPage() {
           localStorage.removeItem('rememberMe');
         }
 
-        setSuccess('✅ 로그인 성공! 대시보드로 이동합니다...');
+        setSuccess(t('auth.loginSuccess'));
 
         setTimeout(() => {
           router.push('/dashboard');
         }, 1000);
       } else {
-        setLocalError(result.error || '로그인에 실패했습니다.');
+        setLocalError(result.error || t('auth.loginError'));
       }
     } catch (error) {
       console.error('로그인 에러:', error);
-      setLocalError(
-        '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-      );
+      setLocalError(t('auth.loginError'));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGitHubLogin = async () => {
+    setLocalError('');
+    setSuccess('');
+    setIsGitHubLoading(true);
+
+    try {
+      const result = await signInWithGitHub();
+
+      if (result.success) {
+        setSuccess(t('auth.githubRedirecting'));
+        // OAuth 리다이렉트가 시작되므로 로딩 상태를 유지
+      } else {
+        setLocalError(result.error || t('auth.githubLoginError'));
+        setIsGitHubLoading(false);
+      }
+    } catch (error) {
+      console.error('GitHub 로그인 에러:', error);
+      setLocalError(t('auth.githubLoginFailure'));
+      setIsGitHubLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -126,7 +235,7 @@ export default function LoginPage() {
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">
-              로그인
+              {t('auth.login')}
             </CardTitle>
             <CardDescription className="text-center">
               Supabase 계정으로 대시보드에 접속하세요
@@ -142,16 +251,16 @@ export default function LoginPage() {
               )}
 
               {success && (
-                <Alert className="border-green-200 bg-green-50 text-green-800">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
+                <Label htmlFor="email">{t('auth.email')}</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="email"
                     type="email"
@@ -159,7 +268,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
-                    disabled={isLoading}
+                    disabled={isLoading || isGitHubLoading}
                     autoComplete="email"
                     required
                   />
@@ -167,25 +276,25 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">비밀번호</Label>
+                <Label htmlFor="password">{t('auth.password')}</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="비밀번호를 입력하세요"
+                    placeholder={t('auth.password')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
-                    disabled={isLoading}
+                    disabled={isLoading || isGitHubLoading}
                     autoComplete="current-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
-                    disabled={isLoading}
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
+                    disabled={isLoading || isGitHubLoading}
                   >
                     {showPassword ? <EyeOff /> : <Eye />}
                   </button>
@@ -200,41 +309,85 @@ export default function LoginPage() {
                     id="rememberMe"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                    disabled={isLoading}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                    disabled={isLoading || isGitHubLoading}
                   />
-                  <Label htmlFor="rememberMe" className="text-sm text-gray-600">
-                    로그인 정보 기억하기
+                  <Label
+                    htmlFor="rememberMe"
+                    className="text-sm text-gray-600 dark:text-gray-400"
+                  >
+                    {t('auth.rememberMe')}
                   </Label>
                 </div>
                 <Link
                   href="/signup"
-                  className="text-sm text-blue-600 hover:text-blue-500"
+                  className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
-                  회원가입
+                  {t('auth.signup')}
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || isGitHubLoading}
+              >
                 {isLoading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    로그인 중...
+                    {t('common.loading')}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center">
                     <LogIn className="h-4 w-4 mr-2" />
-                    로그인
+                    {t('auth.login')}
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </div>
                 )}
               </Button>
             </form>
 
+            {/* GitHub 로그인 구분선 */}
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t dark:border-gray-700" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    {t('auth.or')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* GitHub 로그인 버튼 */}
+            <div className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGitHubLogin}
+                disabled={isLoading || isGitHubLoading}
+              >
+                {isGitHubLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                    {t('auth.githubLoginLoading')}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <Github className="h-4 w-4 mr-2" />
+                    {t('auth.signInWithGitHub')}
+                  </div>
+                )}
+              </Button>
+            </div>
+
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t dark:border-gray-700" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
@@ -244,15 +397,16 @@ export default function LoginPage() {
               </div>
 
               {/* Supabase 정보 */}
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700 font-medium mb-2">
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-2">
                   🚀 Supabase 인증 시스템
                 </p>
-                <div className="text-xs text-blue-600 space-y-1">
+                <div className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
                   <p>• 실제 Supabase Authentication 사용</p>
                   <p>• 이메일 확인 기반 회원가입</p>
+                  <p>• GitHub OAuth 소셜 로그인</p>
                   <p>• 보안 세션 관리</p>
-                  <p className="text-blue-500 mt-2">
+                  <p className="text-blue-500 dark:text-blue-400 mt-2">
                     계정이 없다면 회원가입을 먼저 진행해주세요.
                   </p>
                 </div>
@@ -260,11 +414,11 @@ export default function LoginPage() {
 
               {/* 회원가입 링크 */}
               <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
-                  계정이 없으신가요?{' '}
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('auth.noAccount')}{' '}
                   <Link
                     href="/signup"
-                    className="text-blue-600 hover:text-blue-500 font-medium"
+                    className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                   >
                     새 계정 만들기
                   </Link>

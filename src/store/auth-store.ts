@@ -1,6 +1,98 @@
-import { create } from 'zustand';
-import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
+import { create } from 'zustand';
+
+// 디버깅용 로그 저장 함수
+const debugLog = (message: string, data?: any) => {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] ${message} ${data ? JSON.stringify(data) : ''}`;
+
+  console.log(message, data || '');
+
+  // localStorage에도 저장 (최대 100개 로그 유지)
+  try {
+    const logs = JSON.parse(localStorage.getItem('auth-debug-logs') || '[]');
+    logs.push(logEntry);
+    if (logs.length > 100) logs.shift(); // 오래된 로그 제거
+    localStorage.setItem('auth-debug-logs', JSON.stringify(logs));
+  } catch (e) {
+    // localStorage 오류 무시
+  }
+};
+
+// 저장된 로그 확인 함수 (브라우저 콘솔에서 사용)
+const getDebugLogs = () => {
+  try {
+    const logs = JSON.parse(localStorage.getItem('auth-debug-logs') || '[]');
+    console.log('📋 저장된 인증 디버그 로그:');
+    logs.forEach((log: string) => console.log(log));
+    return logs;
+  } catch (e) {
+    console.log('로그를 불러올 수 없습니다:', e);
+    return [];
+  }
+};
+
+// 로그 지우기 함수
+const clearDebugLogs = () => {
+  localStorage.removeItem('auth-debug-logs');
+  console.log('✅ 디버그 로그가 지워졌습니다');
+};
+
+// 전역에서 사용할 수 있도록 window 객체에 추가
+if (typeof window !== 'undefined') {
+  (window as any).getAuthDebugLogs = getDebugLogs;
+  (window as any).clearAuthDebugLogs = clearDebugLogs;
+}
+
+// GitHub OAuth 사용자를 users 테이블에 저장하는 함수
+const handleGitHubUserCreation = async (user: User) => {
+  try {
+    debugLog('👤 GitHub 사용자 정보:', {
+      id: user.id,
+      email: user.email,
+      provider: user.app_metadata?.provider,
+    });
+
+    // 이미 users 테이블에 존재하는지 확인
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116은 "not found" 에러코드
+      debugLog('❌ 사용자 존재 확인 에러:', checkError);
+      return;
+    }
+
+    if (existingUser) {
+      debugLog('ℹ️ 사용자가 이미 users 테이블에 존재함');
+      return;
+    }
+
+    // users 테이블에 새 사용자 추가
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        email: user.email || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      debugLog('❌ GitHub 사용자 저장 실패:', error);
+    } else {
+      debugLog('✅ GitHub 사용자 users 테이블에 저장 성공:', data);
+    }
+  } catch (error) {
+    debugLog('❌ GitHub 사용자 처리 중 오류:', error);
+  }
+};
 
 interface AuthState {
   user: User | null;
@@ -14,6 +106,7 @@ interface AuthState {
     email: string,
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
+  signInWithGitHub: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   clearError: () => void;
@@ -26,7 +119,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (email: string, password: string) => {
     try {
-      console.log('🔐 Supabase 로그인 시도:', email);
+      debugLog('🔐 Supabase 로그인 시도:', email);
       set({ error: null });
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -35,20 +128,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (error) {
-        console.error('❌ 로그인 실패:', error.message);
+        debugLog('❌ 로그인 실패:', error.message);
         set({ error: error.message });
         return { success: false, error: error.message };
       }
 
       if (data.user) {
         set({ user: data.user, error: null });
-        console.log('✅ 로그인 성공:', data.user.email);
+        debugLog('✅ 로그인 성공:', data.user.email);
         return { success: true };
       }
 
       return { success: false, error: '로그인에 실패했습니다.' };
     } catch (error) {
-      console.error('❌ 로그인 에러:', error);
+      debugLog('❌ 로그인 에러:', error);
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -60,7 +153,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signUp: async (email: string, password: string) => {
     try {
-      console.log('📝 Supabase 회원가입 시도:', email);
+      debugLog('📝 Supabase 회원가입 시도:', email);
       set({ error: null });
 
       const { data, error } = await supabase.auth.signUp({
@@ -72,16 +165,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (error) {
-        console.error('❌ 회원가입 실패:', error.message);
+        debugLog('❌ 회원가입 실패:', error.message);
         set({ error: error.message });
         return { success: false, error: error.message };
       }
 
       if (data.user) {
-        console.log('✅ 회원가입 성공:', data.user.email);
+        debugLog('✅ 회원가입 성공:', data.user.email);
         // 이메일 확인이 필요한 경우
         if (!data.user.email_confirmed_at) {
-          console.log('📧 이메일 확인 필요');
+          debugLog('📧 이메일 확인 필요');
           return {
             success: true,
             error:
@@ -95,7 +188,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       return { success: false, error: '회원가입에 실패했습니다.' };
     } catch (error) {
-      console.error('❌ 회원가입 에러:', error);
+      debugLog('❌ 회원가입 에러:', error);
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -105,21 +198,62 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  signInWithGitHub: async () => {
+    try {
+      debugLog('🐙 GitHub 로그인 시도');
+      set({ error: null });
+
+      const redirectTo = `${window.location.origin}/dashboard`;
+      debugLog('🔗 OAuth redirectTo URL:', redirectTo);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (error) {
+        debugLog('❌ GitHub 로그인 실패:', error.message);
+        set({ error: error.message });
+        return { success: false, error: error.message };
+      }
+
+      // OAuth URL 로그 출력
+      if (data?.url) {
+        debugLog('🌐 GitHub OAuth URL:', data.url);
+      }
+
+      debugLog('✅ GitHub 로그인 리다이렉트 시작');
+      // OAuth는 리다이렉트 기반이므로 여기서는 성공으로 반환
+      // 실제 인증 결과는 onAuthStateChange에서 처리됨
+      return { success: true };
+    } catch (error) {
+      debugLog('❌ GitHub 로그인 에러:', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'GitHub 로그인 중 오류가 발생했습니다.';
+      set({ error: errorMessage });
+      return { success: false, error: errorMessage };
+    }
+  },
+
   signOut: async () => {
     try {
-      console.log('👋 로그아웃 시도');
+      debugLog('👋 로그아웃 시도');
 
       const { error } = await supabase.auth.signOut();
 
       if (error) {
-        console.error('❌ 로그아웃 에러:', error.message);
+        debugLog('❌ 로그아웃 에러:', error.message);
         set({ error: error.message });
       } else {
         set({ user: null, error: null });
-        console.log('✅ 로그아웃 완료');
+        debugLog('✅ 로그아웃 완료');
       }
     } catch (error) {
-      console.error('❌ 로그아웃 에러:', error);
+      debugLog('❌ 로그아웃 에러:', error);
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -133,7 +267,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     try {
       set({ loading: true, error: null });
-      console.log('🔄 Supabase 인증 시스템 초기화 시작');
+      debugLog('🔄 Supabase 인증 시스템 초기화 시작');
+
+      // URL에서 OAuth 토큰 확인
+      if (typeof window !== 'undefined') {
+        const currentUrl = window.location.href;
+        const hashParams = window.location.hash;
+        const searchParams = window.location.search;
+
+        debugLog('🌐 현재 URL 정보:', {
+          url: currentUrl,
+          hash: hashParams,
+          search: searchParams,
+        });
+
+        // OAuth 관련 파라미터가 있는지 확인
+        if (
+          hashParams.includes('access_token') ||
+          hashParams.includes('error') ||
+          searchParams.includes('code') ||
+          searchParams.includes('error')
+        ) {
+          debugLog('🔑 OAuth 파라미터 감지됨');
+
+          // URL fragment에서 수동으로 토큰 처리 시도
+          if (hashParams.includes('access_token')) {
+            debugLog('🔧 수동 토큰 처리 시도');
+            try {
+              const { data, error } = await supabase.auth.getSession();
+              if (error) {
+                debugLog('❌ 수동 세션 확인 실패:', error);
+              } else {
+                debugLog(
+                  '✅ 수동 세션 확인 성공:',
+                  data.session?.user?.email || 'no user'
+                );
+              }
+            } catch (e) {
+              debugLog('❌ 수동 처리 중 오류:', e);
+            }
+          }
+        }
+      }
 
       // 현재 세션 확인
       const {
@@ -142,42 +317,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('❌ 세션 확인 에러:', error.message);
+        debugLog('❌ 세션 확인 에러:', error.message);
         set({ error: error.message });
       } else if (session?.user) {
         set({ user: session.user });
-        console.log('✅ 기존 세션 복구:', session.user.email);
+        debugLog('✅ 기존 세션 복구:', session.user.email);
       } else {
-        console.log('ℹ️ 기존 세션 없음');
+        debugLog('ℹ️ 기존 세션 없음');
       }
 
       // 인증 상태 변경 리스너 설정
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔄 인증 상태 변경:', event, session?.user?.email);
+        debugLog('🔄 인증 상태 변경:', {
+          event,
+          userEmail: session?.user?.email || 'null',
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          provider: session?.user?.app_metadata?.provider,
+        });
 
         switch (event) {
           case 'SIGNED_IN':
-            set({ user: session?.user ?? null, error: null });
+            if (session?.user) {
+              set({ user: session.user, error: null });
+              debugLog('✅ SIGNED_IN 처리 완료:', session.user.email);
+
+              // GitHub OAuth 사용자를 users 테이블에 저장
+              if (session.user.app_metadata?.provider === 'github') {
+                debugLog(
+                  '🐙 GitHub OAuth 사용자 감지, users 테이블에 저장 시도'
+                );
+                handleGitHubUserCreation(session.user);
+              }
+            }
             break;
           case 'SIGNED_OUT':
             set({ user: null, error: null });
+            debugLog('👋 SIGNED_OUT 처리 완료');
             break;
           case 'TOKEN_REFRESHED':
             set({ user: session?.user ?? null });
+            debugLog('🔄 TOKEN_REFRESHED 처리 완료');
             break;
           case 'USER_UPDATED':
             set({ user: session?.user ?? null });
+            debugLog('📝 USER_UPDATED 처리 완료');
             break;
           default:
+            debugLog('❓ 알 수 없는 인증 이벤트:', event);
             break;
         }
       });
 
-      console.log('✅ 인증 시스템 초기화 완료');
+      debugLog('✅ 인증 시스템 초기화 완료');
     } catch (error) {
-      console.error('❌ 인증 초기화 에러:', error);
+      debugLog('❌ 인증 초기화 에러:', error);
       const errorMessage =
         error instanceof Error
           ? error.message

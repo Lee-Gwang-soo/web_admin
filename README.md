@@ -80,75 +80,6 @@ Next.js 14 app router 및 supabase를 기반으로 한 E-commerce 플랫폼을 �
 - **Data Export**: SheetJS (xlsx)
 - **Testing**: Jest + React Testing Library (구현 예정)
 
-## 📦 설치 및 실행
-
-### 1. 저장소 클론
-
-```bash
-git clone <repository-url>
-cd admin_web
-```
-
-### 2. 의존성 설치
-
-```bash
-npm install
-```
-
-### 3. 환경 변수 설정
-
-`.env.local` 파일을 생성하고 다음 환경 변수를 설정하세요:
-
-```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-
-# Google OAuth (optional)
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-
-# GitHub OAuth (optional)
-GITHUB_CLIENT_ID=your_github_client_id_here
-GITHUB_CLIENT_SECRET=your_github_client_secret_here
-
-# Next.js
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret_here
-```
-
-### 4. 개발 서버 실행
-
-```bash
-npm run dev
-```
-
-브라우저에서 [http://localhost:3000](http://localhost:3000)으로 접속하세요.
-
-## ⚙️ 개발 스크립트
-
-```bash
-# 개발 서버 실행
-npm run dev
-
-# 프로덕션 빌드
-npm run build
-
-# 프로덕션 서버 실행
-npm start
-
-# 코드 품질 검사
-npm run lint
-npm run lint:fix
-
-# 코드 포맷팅
-npm run format
-npm run format:check
-
-# 타입 체크
-npm run type-check
-```
-
 ## 🔄 Git Hooks & CI/CD
 
 ### Pre-commit Hooks
@@ -173,7 +104,6 @@ docs: update README
 ### GitHub Actions 워크플로우
 
 - **CI Pipeline**: 코드 품질 검사, 빌드, 타입 체크
-- **Security**: CodeQL 보안 분석
 - **Performance**: Lighthouse 성능 감사
 - **Dependency Updates**: 자동 의존성 업데이트
 - **Deployment**: Vercel 자동 배포
@@ -259,18 +189,18 @@ src/
 - [x] 코드 품질 도구 (ESLint, Prettier)
 - [x] 보안 스캔 (CodeQL)
 - [x] 성능 감사 (Lighthouse)
+- [x] 소셜 로그인 구현(Github)
+- [x] 다국어 지원(Kor,Eng)
+- [x] 주문 관리 시스템
 
 ### 🚧 진행 중
 
-- [ ] 주문 관리 시스템
 - [ ] 사용자 관리 고도화
 - [ ] 실시간 알림 시스템
 
 ### 📋 향후 계획
 
-- [ ] 소셜 로그인 구현
 - [ ] 유닛 테스트 추가
 - [ ] 모바일 최적화
-- [ ] 다국어 지원
 - [ ] 고급 분석 기능
 - [ ] API 문서화
