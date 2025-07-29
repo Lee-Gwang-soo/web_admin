@@ -22,9 +22,13 @@ export default function DashboardPage() {
     stopRealTimeUpdates,
   } = useDashboardStore();
 
-  // 환경변수 디버깅 로그 (프로덕션에서만)
+  // 클라이언트 사이드 환경변수 디버깅 (빌드 시점 제외)
   useEffect(() => {
-    if (process.env.NODE_ENV === 'production') {
+    // 클라이언트 사이드에서만 실행
+    if (
+      typeof window !== 'undefined' &&
+      process.env.NODE_ENV === 'production'
+    ) {
       console.log('🔍 Client-side Environment Check:');
       console.log(
         'NEXT_PUBLIC_SUPABASE_URL:',
@@ -38,6 +42,9 @@ export default function DashboardPage() {
         'NEXT_PUBLIC_SITE_URL:',
         process.env.NEXT_PUBLIC_SITE_URL || 'Missing'
       );
+
+      // API 요청 시 사용되는 실제 값들 확인
+      console.log('Current window.location.origin:', window.location.origin);
     }
   }, []);
 

@@ -390,7 +390,6 @@
     "role": "역할",
     "createdAt": "가입일",
     "lastLogin": "마지막 로그인",
-    "status": "상태",
     "active": "활성",
     "inactive": "비활성",
     "admin": "관리자",

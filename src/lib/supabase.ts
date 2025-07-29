@@ -1,56 +1,81 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 환경변수 검증 함수
+// 빌드 시점인지 런타임인지 확인
+const isBuildTime =
+  typeof window === 'undefined' && process.env.NODE_ENV !== 'development';
+
+// 환경변수 검증 함수 (런타임에서만 검증)
 const getRequiredEnvVar = (name: string, fallback?: string): string => {
   const value = process.env[name];
 
+  // 빌드 시점에는 기본값 사용
+  if (isBuildTime) {
+    return fallback || `build-time-${name.toLowerCase()}`;
+  }
+
   if (!value) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(`Missing required environment variable: ${name}`);
+    if (
+      process.env.NODE_ENV === 'production' &&
+      typeof window !== 'undefined'
+    ) {
+      console.error(`❌ Missing required environment variable: ${name}`);
+      // 프로덕션에서는 에러를 던지지 않고 기본값 사용
+      return fallback || '';
     }
     if (fallback) {
       console.warn(`⚠️ Using fallback value for ${name} in development`);
       return fallback;
     }
-    throw new Error(`Missing required environment variable: ${name}`);
+    return '';
   }
 
   return value;
 };
 
-// 환경 변수에서 값을 가져오기 (프로덕션에서는 필수)
+// 환경 변수에서 값을 가져오기
 const supabaseUrl = getRequiredEnvVar(
   'NEXT_PUBLIC_SUPABASE_URL',
-  process.env.NODE_ENV === 'development'
-    ? 'https://esnmmlqzmlnygtmdxdvq.supabase.co'
-    : undefined
+  'https://esnmmlqzmlnygtmdxdvq.supabase.co'
 );
 
 const supabaseAnonKey = getRequiredEnvVar(
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  process.env.NODE_ENV === 'development'
-    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbm1tbHF6bWxueWd0bWR4ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MDU4MDIsImV4cCI6MjA0OTQ4MTgwMn0.r-xKhgGz6FdHXDwX8hMxQBEf1UlqjGQgz_rQ2uVZzHE'
-    : undefined
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbm1tbHF6bWxueWd0bWR4ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MDU4MDIsImV4cCI6MjA0OTQ4MTgwMn0.r-xKhgGz6FdHXDwX8hMxQBEf1UlqjGQgz_rQ2uVZzHE'
 );
 
-// 개발 환경에서 환경 변수 디버깅
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔍 Environment Variables Debug:');
-  console.log(
-    'NEXT_PUBLIC_SUPABASE_URL:',
-    process.env.NEXT_PUBLIC_SUPABASE_URL
-  );
-  console.log(
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY:',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Found' : '❌ Missing'
-  );
-}
+// 클라이언트 사이드에서만 환경변수 검증 로깅
+if (typeof window !== 'undefined') {
+  // 개발 환경에서 환경 변수 디버깅
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 Environment Variables Debug:');
+    console.log(
+      'NEXT_PUBLIC_SUPABASE_URL:',
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+    );
+    console.log(
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY:',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Found' : '❌ Missing'
+    );
+  }
 
-// 프로덕션에서 환경변수 확인 로깅
-if (process.env.NODE_ENV === 'production') {
-  console.log('🚀 Production Environment Check:');
-  console.log('Supabase URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
-  console.log('Supabase Anon Key:', supabaseAnonKey ? '✅ Set' : '❌ Missing');
+  // 프로덕션에서 환경변수 확인 로깅
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🚀 Production Environment Check:');
+    console.log('Supabase URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
+    console.log(
+      'Supabase Anon Key:',
+      supabaseAnonKey ? '✅ Set' : '❌ Missing'
+    );
+
+    // 실제 환경변수 확인
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      console.error('❌ Missing Supabase environment variables in production!');
+      console.error('Please check Vercel environment variable settings.');
+    }
+  }
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
