@@ -226,7 +226,7 @@ export default function UsersPage() {
                     <CardTitle>{t('users.details.orderHistory')}</CardTitle>
                     <CardDescription>
                       {t('users.details.totalOrders', {
-                        count: userOrders.length,
+                        count: userOrders.length.toString(),
                       })}
                     </CardDescription>
                   </CardHeader>
@@ -259,7 +259,7 @@ export default function UsersPage() {
                         {userOrders.length > 5 && (
                           <p className="text-sm text-gray-500 text-center">
                             {t('users.details.andMore', {
-                              count: userOrders.length - 5,
+                              count: (userOrders.length - 5).toString(),
                             })}
                           </p>
                         )}
