@@ -9,6 +9,7 @@ const supabaseAnonKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbm1tbHF6bWxueWd0bWR4ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MDU4MDIsImV4cCI6MjA0OTQ4MTgwMn0.r-xKhgGz6FdHXDwX8hMxQBEf1UlqjGQgz_rQ2uVZzHE';
 
 // 개발 환경에서 실제 환경 변수가 설정되지 않은 경우 경고
+
 if (process.env.NODE_ENV === 'development') {
   console.log('🔍 Environment Variables Debug:');
   console.log(
