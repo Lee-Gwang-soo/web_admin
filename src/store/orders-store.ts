@@ -22,6 +22,11 @@ interface OrdersState {
   selectedOrderForDetails: OrderWithItems | null;
   bulkStatusUpdate: string | null;
 
+  // Pagination
+  currentPage: number;
+  itemsPerPage: number;
+  totalItems: number;
+
   // Actions
   fetchOrders: () => Promise<void>;
   fetchStatuses: () => Promise<void>;
@@ -35,16 +40,20 @@ interface OrdersState {
   toggleAllOrdersSelection: () => void;
   selectAllOrders: () => void;
   clearSelection: () => void;
+  clearAllFilters: () => void; // 새로운 함수 - 모든 필터와 검색어 초기화
   exportToExcel: () => void;
   exportOrdersToExcel: () => void;
   bulkUpdateOrderStatus: (orderIds: string[], status: string) => Promise<void>;
   setBulkStatusUpdate: (status: string | null) => void;
   setSelectedOrderForDetails: (order: OrderWithItems | null) => void;
   refreshData: () => Promise<void>;
-}
 
-// Debounce utility
-let searchTimeoutId: NodeJS.Timeout | null = null;
+  // Pagination actions
+  setCurrentPage: (page: number) => void;
+  setItemsPerPage: (itemsPerPage: number) => void;
+  nextPage: () => void;
+  prevPage: () => void;
+}
 
 // Memoized sorting function
 const sortOrders = (
@@ -99,6 +108,11 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
   selectedOrderForDetails: null,
   bulkStatusUpdate: null,
 
+  // Pagination
+  currentPage: 1,
+  itemsPerPage: 10,
+  totalItems: 0,
+
   fetchOrders: async () => {
     try {
       set({ loading: true, error: null });
@@ -110,21 +124,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
         selectedStatus !== 'all' ? selectedStatus : undefined
       );
 
-      const { sortField, sortOrder } = get();
-      const sortedOrders = sortOrders(orders, sortField, sortOrder);
-
-      set({
-        orders: sortedOrders,
-        loading: false,
-        error: null,
-      });
+      set({ orders, totalItems: orders.length, loading: false });
     } catch (error) {
-      console.error('Error fetching orders:', error);
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to fetch orders',
-        loading: false,
-      });
+      console.error('Failed to fetch orders:', error);
+      set({ error: 'Failed to fetch orders', loading: false });
     }
   },
 
@@ -150,20 +153,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
   },
 
   setSearchTerm: (term: string) => {
+    console.log('🔍 Setting orders search term:', term);
     set({ searchTerm: term });
-
-    // Clear existing timeout
-    if (searchTimeoutId) {
-      clearTimeout(searchTimeoutId);
-    }
-
-    // Set new timeout
-    searchTimeoutId = setTimeout(() => {
-      const currentTerm = get().searchTerm;
-      if (currentTerm === term) {
-        get().fetchOrders();
-      }
-    }, 300);
+    // SearchBar에서 이미 debounce 처리했으므로 즉시 실행
+    get().fetchOrders();
   },
 
   setSelectedStatus: (status: string) => {
@@ -234,12 +227,34 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
   },
 
   selectAllOrders: () => {
-    const { orders } = get();
-    set({ selectedOrders: orders.map((order) => order.id) });
+    const { orders, selectedOrders } = get();
+    const allOrderIds = orders.map((order) => order.id);
+
+    // Toggle logic: if all are selected, clear selection; otherwise select all
+    if (
+      selectedOrders.length === allOrderIds.length &&
+      allOrderIds.length > 0
+    ) {
+      set({ selectedOrders: [] });
+    } else {
+      set({ selectedOrders: allOrderIds });
+    }
   },
 
   clearSelection: () => {
     set({ selectedOrders: [] });
+  },
+
+  clearAllFilters: () => {
+    set({
+      searchTerm: '',
+      selectedStatus: 'all',
+      sortField: 'created_at',
+      sortOrder: 'desc',
+      currentPage: 1,
+      selectedOrders: [], // selection도 함께 초기화
+    });
+    get().fetchOrders();
   },
 
   bulkUpdateStatus: async (orderIds: string[], status: string) => {
@@ -348,5 +363,30 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
   refreshData: async () => {
     await Promise.all([get().fetchOrders(), get().fetchStatuses()]);
+  },
+
+  // Pagination actions
+  setCurrentPage: (page: number) => {
+    set({ currentPage: page });
+    // 클라이언트 사이드 pagination이므로 fetch 불필요
+  },
+
+  setItemsPerPage: (itemsPerPage: number) => {
+    set({ itemsPerPage: itemsPerPage, currentPage: 1 }); // 페이지를 1로 리셋
+  },
+
+  nextPage: () => {
+    const { currentPage, totalItems, itemsPerPage } = get();
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (currentPage < totalPages) {
+      set({ currentPage: currentPage + 1 });
+    }
+  },
+
+  prevPage: () => {
+    const { currentPage } = get();
+    if (currentPage > 1) {
+      set({ currentPage: currentPage - 1 });
+    }
   },
 }));

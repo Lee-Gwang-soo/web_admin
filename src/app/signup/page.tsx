@@ -125,7 +125,7 @@ export default function SignUpPage() {
           setSuccess(t('auth.signupSuccess'));
 
           if (autoLogin) {
-            setSuccess('회원가입 완료! 자동으로 로그인하는 중...');
+            setSuccess(t('auth.signupCompleteAutoLogin'));
 
             setTimeout(async () => {
               const loginResult = await signIn(email, password);
@@ -135,9 +135,7 @@ export default function SignUpPage() {
                   router.push('/dashboard');
                 }, 1000);
               } else {
-                setSuccess(
-                  '회원가입은 완료되었습니다. 로그인 페이지로 이동합니다...'
-                );
+                setSuccess(t('auth.signupCompleteRedirect'));
                 setTimeout(() => {
                   router.push('/login');
                 }, 2000);
@@ -193,10 +191,10 @@ export default function SignUpPage() {
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">
-              회원가입
+              {t('auth.signupTitle')}
             </CardTitle>
             <CardDescription className="text-center">
-              Supabase 계정을 생성하여 대시보드에 접속하세요
+              {t('auth.signupDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -216,7 +214,7 @@ export default function SignUpPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
+                <Label htmlFor="email">{t('auth.email')}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
@@ -234,13 +232,16 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">비밀번호</Label>
+                <Label htmlFor="password">{t('auth.password')}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="최소 6자 이상"
+                    placeholder={t('auth.passwordMinLength').replace(
+                      'Password must be at least 6 characters long.',
+                      '최소 6자 이상'
+                    )}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
@@ -260,13 +261,15 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">비밀번호 확인</Label>
+                <Label htmlFor="confirmPassword">
+                  {t('auth.confirmPassword')}
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="비밀번호를 다시 입력하세요"
+                    placeholder={t('auth.confirmPassword')}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pl-10 pr-10"
@@ -299,7 +302,7 @@ export default function SignUpPage() {
                   htmlFor="autoLogin"
                   className="text-sm text-gray-600 dark:text-gray-400"
                 >
-                  회원가입 후 자동으로 로그인 (이메일 확인 불필요한 경우)
+                  {t('auth.autoLoginOption')}
                 </Label>
               </div>
 
@@ -311,12 +314,14 @@ export default function SignUpPage() {
                 {isLoading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {autoLogin ? '가입 후 로그인 중...' : '회원가입 중...'}
+                    {autoLogin
+                      ? t('auth.signingUpAndLoggingIn')
+                      : t('auth.signingUp')}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center">
                     <User className="h-4 w-4 mr-2" />
-                    회원가입
+                    {t('auth.signup')}
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </div>
                 )}
@@ -367,7 +372,7 @@ export default function SignUpPage() {
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
-                    정보
+                    {t('common.info')}
                   </span>
                 </div>
               </div>
@@ -376,15 +381,15 @@ export default function SignUpPage() {
               <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-2 flex items-center">
                   <Info className="h-4 w-4 mr-1" />
-                  Supabase 회원가입 안내
+                  {t('auth.signupGuide')}
                 </p>
                 <div className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
-                  <p>• 이메일 주소로 계정이 생성됩니다</p>
-                  <p>• GitHub OAuth로 간편 회원가입</p>
-                  <p>• 이메일 확인이 필요할 수 있습니다</p>
-                  <p>• 보안을 위해 강력한 비밀번호를 사용하세요</p>
+                  <p>{t('auth.signupFeatures.emailAccount')}</p>
+                  <p>{t('auth.signupFeatures.githubSignup')}</p>
+                  <p>{t('auth.signupFeatures.emailConfirmation')}</p>
+                  <p>{t('auth.signupFeatures.strongPassword')}</p>
                   <p className="text-blue-500 dark:text-blue-400 mt-2">
-                    회원가입 후 이메일을 확인해주세요.
+                    {t('auth.pleaseCheckEmail')}
                   </p>
                 </div>
               </div>

@@ -63,7 +63,7 @@ export function Sidebar() {
         <div className="flex items-center space-x-2">
           <BarChart3 className="h-8 w-8 text-primary dark:text-primary" />
           <span className="text-xl font-bold text-sidebar-foreground dark:text-sidebar-foreground">
-            Admin Panel
+            {t('common.adminPanel')}
           </span>
         </div>
       </div>

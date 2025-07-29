@@ -1,92 +1,41 @@
 'use client';
 
-import { AdminLayout } from '@/components/layout/admin-layout';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/atoms';
+import { BulkActionBar, KPICard, SearchBar } from '@/components/molecules';
+import { ColumnDef, DataTable, ProductFormModal } from '@/components/organisms';
+import { ProductsTemplate } from '@/components/templates';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Product, supabaseApi } from '@/lib/supabase';
+// prettier-ignore
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Product } from '@/lib/supabase';
+import { useTranslation } from '@/store/i18n-store';
 import { SortField, useProductsStore } from '@/store/products-store';
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  CheckSquare,
-  Copy,
-  DollarSign,
-  Edit,
-  Eye,
-  FileSpreadsheet,
-  Package,
-  Plus,
-  RefreshCw,
-  Search,
-  Square,
-  Trash2,
-  TrendingUp,
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+// prettier-ignore
+import { Copy, DollarSign, Edit, FileSpreadsheet, Package, Plus, RefreshCw, Trash2, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// Enhanced Image component with error handling
-interface OptimizedImageProps {
+// Optimized Image Component
+const OptimizedImage = memo<{
   src: string | undefined;
   alt: string;
   width: number;
   height: number;
   className?: string;
-  fallbackSrc?: string;
-  unoptimized?: boolean;
-  priority?: boolean;
   onClick?: () => void;
-}
-
-const OptimizedImage = memo<OptimizedImageProps>(function OptimizedImage({
+}>(function OptimizedImage({
   src,
   alt,
   width,
   height,
   className = '',
-  fallbackSrc = '',
-  unoptimized = false,
-  priority = false,
   onClick,
 }) {
   const [imageSrc, setImageSrc] = useState(src);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  // Reset state when src changes
   useEffect(() => {
     if (src) {
       setImageSrc(src);
@@ -98,28 +47,21 @@ const OptimizedImage = memo<OptimizedImageProps>(function OptimizedImage({
   const handleError = useCallback(() => {
     setHasError(true);
     setIsLoading(false);
-    // Don't try to set fallback if it's empty or same as current
-    if (fallbackSrc && imageSrc !== fallbackSrc) {
-      setImageSrc(fallbackSrc);
-    } else {
-      // Clear the image src to show placeholder div
-      setImageSrc('');
-    }
-  }, [imageSrc, fallbackSrc]);
+    setImageSrc('');
+  }, []);
 
   const handleLoad = useCallback(() => {
     setIsLoading(false);
     setHasError(false);
   }, []);
 
-  // If no valid image source, show placeholder
   if (!imageSrc || hasError) {
     return (
       <div
         className={`${className} bg-gray-200 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-300 transition-colors`}
         style={{ width, height }}
         onClick={onClick}
-        title={hasError ? `이미지 로드 실패: ${alt}` : `이미지 없음: ${alt}`}
+        title={hasError ? `Image load failed: ${alt}` : `No image: ${alt}`}
       >
         <Package className="h-6 w-6 text-gray-400" />
       </div>
@@ -131,7 +73,6 @@ const OptimizedImage = memo<OptimizedImageProps>(function OptimizedImage({
       {isLoading && (
         <div
           className={`${className} bg-gray-200 animate-pulse flex items-center justify-center absolute inset-0 z-10 rounded-md`}
-          style={{ width, height }}
         >
           <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
         </div>
@@ -142,8 +83,6 @@ const OptimizedImage = memo<OptimizedImageProps>(function OptimizedImage({
         width={width}
         height={height}
         className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-        unoptimized={unoptimized}
-        priority={priority}
         onError={handleError}
         onLoad={handleLoad}
         placeholder="blur"
@@ -153,604 +92,307 @@ const OptimizedImage = memo<OptimizedImageProps>(function OptimizedImage({
   );
 });
 
-// Import motion directly for proper TypeScript support
-import { motion } from 'framer-motion';
-
-// Add Product Form Component
-interface AddProductFormProps {
-  onSave: (
-    productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>
-  ) => void;
-  onCancel: () => void;
-}
-
-const AddProductForm = memo<AddProductFormProps>(function AddProductForm({
-  onSave,
-  onCancel,
-}) {
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    price: 0,
-    stock: 0,
-  });
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setUploading(true);
-
-      try {
-        let imageUrl: string | undefined;
-
-        // Upload image if file is selected
-        if (selectedFile) {
-          imageUrl = await supabaseApi.uploadProductImage(selectedFile);
-        }
-
-        onSave({
-          name: formData.name,
-          category: formData.category,
-          price: Number(formData.price),
-          stock: Number(formData.stock),
-          image_url: imageUrl,
-        });
-      } catch (error) {
-        console.error('Failed to upload image:', error);
-        alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
-      } finally {
-        setUploading(false);
-      }
-    },
-    [formData, selectedFile, onSave]
-  );
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setSelectedFile(file);
-        // Create preview URL
-        const reader = new FileReader();
-        reader.onload = () => {
-          setImagePreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setSelectedFile(null);
-        setImagePreview(null);
-      }
-    },
-    []
-  );
-
-  const handleRemoveImage = useCallback(() => {
-    setSelectedFile(null);
-    setImagePreview(null);
-    // Reset file input
-    const fileInput = document.getElementById('add-image') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  }, []);
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="add-name">상품명</Label>
-        <Input
-          id="add-name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="상품명을 입력하세요"
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="add-category">카테고리</Label>
-        <Input
-          id="add-category"
-          value={formData.category}
-          onChange={(e) =>
-            setFormData({ ...formData, category: e.target.value })
-          }
-          placeholder="카테고리를 입력하세요"
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="add-price">가격</Label>
-        <Input
-          id="add-price"
-          type="number"
-          value={formData.price}
-          onChange={(e) =>
-            setFormData({ ...formData, price: Number(e.target.value) })
-          }
-          placeholder="가격을 입력하세요"
-          required
-          min="0"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="add-stock">재고</Label>
-        <Input
-          id="add-stock"
-          type="number"
-          value={formData.stock}
-          onChange={(e) =>
-            setFormData({ ...formData, stock: Number(e.target.value) })
-          }
-          placeholder="재고 수량을 입력하세요"
-          required
-          min="0"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="add-image">상품 이미지</Label>
-        <div className="space-y-2">
-          <Input
-            id="add-image"
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="cursor-pointer"
-          />
-          {imagePreview && (
-            <div className="relative">
-              <OptimizedImage
-                src={imagePreview}
-                alt="미리보기"
-                width={128}
-                height={128}
-                className="object-cover rounded-md border"
-                unoptimized
-              />
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleRemoveImage}
-                className="absolute top-1 right-1 h-6 w-6 p-0"
-              >
-                ×
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="cursor-pointer hover:bg-gray-50 transition-colors"
-        >
-          취소
-        </Button>
-        <Button
-          type="submit"
-          disabled={uploading}
-          className="cursor-pointer hover:bg-blue-600 transition-colors"
-        >
-          {uploading ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              업로드 중...
-            </>
-          ) : (
-            '추가'
-          )}
-        </Button>
-      </div>
-    </form>
-  );
-});
-
-// Edit Product Form Component
-interface EditProductFormProps {
+// Optimized Cell Components with stable references
+interface ProductImageCellProps {
   product: Product;
-  onSave: (product: Product) => void;
-  onCancel: () => void;
 }
 
-const EditProductForm = memo<EditProductFormProps>(function EditProductForm({
+const ProductImageCell = memo<ProductImageCellProps>(function ProductImageCell({
   product,
-  onSave,
-  onCancel,
 }) {
-  const [formData, setFormData] = useState({
-    name: product.name,
-    category: product.category,
-    price: product.price,
-    stock: product.stock || 0,
-  });
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [keepExistingImage, setKeepExistingImage] = useState(true);
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setUploading(true);
-
-      try {
-        let imageUrl = product.image_url; // Keep existing image by default
-
-        // If new file is selected, upload it and delete old image
-        if (selectedFile) {
-          imageUrl = await supabaseApi.uploadProductImage(selectedFile);
-
-          // Delete old image if it exists
-          if (product.image_url) {
-            await supabaseApi.deleteProductImage(product.image_url);
-          }
-        } else if (!keepExistingImage && product.image_url) {
-          // If user chose to remove existing image
-          await supabaseApi.deleteProductImage(product.image_url);
-          imageUrl = undefined;
-        }
-
-        onSave({
-          ...product,
-          ...formData,
-          price: Number(formData.price),
-          stock: Number(formData.stock),
-          image_url: imageUrl,
-        });
-      } catch (error) {
-        console.error('Failed to upload image:', error);
-        alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
-      } finally {
-        setUploading(false);
-      }
-    },
-    [product, formData, selectedFile, keepExistingImage, onSave]
-  );
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setSelectedFile(file);
-        setKeepExistingImage(false);
-        // Create preview URL
-        const reader = new FileReader();
-        reader.onload = () => {
-          setImagePreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setSelectedFile(null);
-        setImagePreview(null);
-        setKeepExistingImage(true);
-      }
-    },
-    []
-  );
-
-  const handleRemoveImage = useCallback(() => {
-    setSelectedFile(null);
-    setImagePreview(null);
-    setKeepExistingImage(true);
-    // Reset file input
-    const fileInput = document.getElementById('edit-image') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  }, []);
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="edit-name">상품명</Label>
-        <Input
-          id="edit-name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="edit-category">카테고리</Label>
-        <Input
-          id="edit-category"
-          value={formData.category}
-          onChange={(e) =>
-            setFormData({ ...formData, category: e.target.value })
-          }
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="edit-price">가격</Label>
-        <Input
-          id="edit-price"
-          type="number"
-          value={formData.price}
-          onChange={(e) =>
-            setFormData({ ...formData, price: Number(e.target.value) })
-          }
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="edit-stock">재고</Label>
-        <Input
-          id="edit-stock"
-          type="number"
-          value={formData.stock}
-          onChange={(e) =>
-            setFormData({ ...formData, stock: Number(e.target.value) })
-          }
-          required
-          min="0"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="edit-image">상품 이미지</Label>
-        <div className="space-y-3">
-          {/* Show existing image if any */}
-          {product.image_url && keepExistingImage && !selectedFile && (
-            <div className="relative">
-              <OptimizedImage
-                src={product.image_url}
-                alt={product.name}
-                width={128}
-                height={128}
-                className="object-cover rounded-md border"
-              />
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setKeepExistingImage(false)}
-                className="absolute top-1 right-1 h-6 w-6 p-0"
-              >
-                ×
-              </Button>
-              <p className="text-sm text-gray-500 mt-1">현재 이미지</p>
-            </div>
-          )}
-
-          {/* Show message when existing image is removed */}
-          {product.image_url && !keepExistingImage && !selectedFile && (
-            <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
-              <p className="text-sm text-orange-700">
-                기존 이미지가 제거됩니다.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setKeepExistingImage(true)}
-                className="mt-2"
-              >
-                기존 이미지 유지
-              </Button>
-            </div>
-          )}
-
-          {/* File input */}
-          <Input
-            id="edit-image"
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="cursor-pointer"
-          />
-
-          {/* Show new image preview */}
-          {imagePreview && selectedFile && (
-            <div className="relative">
-              <OptimizedImage
-                src={imagePreview}
-                alt="새 이미지 미리보기"
-                width={128}
-                height={128}
-                className="object-cover rounded-md border"
-                unoptimized
-              />
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleRemoveImage}
-                className="absolute top-1 right-1 h-6 w-6 p-0"
-              >
-                ×
-              </Button>
-              <p className="text-sm text-gray-500 mt-1">새 이미지</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="cursor-pointer hover:bg-gray-50 transition-colors"
-        >
-          취소
-        </Button>
-        <Button
-          type="submit"
-          disabled={uploading}
-          className="cursor-pointer hover:bg-blue-600 transition-colors"
-        >
-          {uploading ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              업로드 중...
-            </>
-          ) : (
-            '저장'
-          )}
-        </Button>
-      </div>
-    </form>
+    <div className="flex items-center justify-center">
+      <OptimizedImage
+        src={product.image_url}
+        alt={product.name}
+        width={40}
+        height={40}
+        className="rounded object-cover"
+      />
+    </div>
   );
 });
 
-export default function ProductsPage() {
-  const {
-    products,
-    categories,
-    loading,
-    error,
-    searchTerm,
-    selectedCategory,
-    sortField,
-    sortOrder,
-    editingProduct,
-    selectedProducts,
-    bulkEditData,
-    setSearchTerm,
-    setSelectedCategory,
-    setSorting,
-    setEditingProduct,
-    updateProduct,
-    addProduct,
-    deleteProduct,
-    refreshData,
-    // Bulk operations
-    toggleProductSelection,
-    selectAllProducts,
-    clearSelection,
-    bulkDeleteProducts,
-    bulkUpdateProducts,
-    setBulkEditData,
-    // Clone operation
-    cloneProduct,
-    // Export operations
-    exportProductsToExcel,
-  } = useProductsStore();
+interface ProductNameCellProps {
+  product: Product;
+}
+
+const ProductNameCell = memo<ProductNameCellProps>(function ProductNameCell({
+  product,
+}) {
+  return (
+    <div>
+      <div className="font-medium">{product.name}</div>
+      <div className="text-sm text-gray-500">{product.category}</div>
+    </div>
+  );
+});
+
+interface ProductPriceCellProps {
+  product: Product;
+  formatPrice: (price: number) => string;
+}
+
+const ProductPriceCell = memo<ProductPriceCellProps>(function ProductPriceCell({
+  product,
+  formatPrice,
+}) {
+  return <span className="font-medium">{formatPrice(product.price)}</span>;
+});
+
+interface ProductStockCellProps {
+  product: Product;
+  getStockBadgeVariant: (stock: number) => 'success' | 'warning' | 'danger';
+  getStockBadgeText: (stock: number) => string;
+}
+
+const ProductStockCell = memo<ProductStockCellProps>(function ProductStockCell({
+  product,
+  getStockBadgeVariant,
+  getStockBadgeText,
+}) {
+  return (
+    <StatusBadge variant={getStockBadgeVariant(product.stock)}>
+      {getStockBadgeText(product.stock)}
+    </StatusBadge>
+  );
+});
+
+interface ProductDateCellProps {
+  product: Product;
+}
+
+const ProductDateCell = memo<ProductDateCellProps>(function ProductDateCell({
+  product,
+}) {
+  return (
+    <span className="text-sm">
+      {new Date(product.updated_at).toLocaleDateString()}
+    </span>
+  );
+});
+
+// Action Button Components - 개별 버튼으로 분리하여 최적화
+interface EditButtonProps {
+  product: Product;
+  onEdit: (product: Product) => void;
+  label: string;
+}
+
+const EditButton = memo<EditButtonProps>(function EditButton({
+  product,
+  onEdit,
+  label,
+}) {
+  const handleClick = useCallback(() => {
+    onEdit(product);
+  }, [product, onEdit]);
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleClick}
+      className="h-8 w-8 p-0"
+      aria-label={label}
+    >
+      <Edit className="h-4 w-4" />
+    </Button>
+  );
+});
+
+interface CloneButtonProps {
+  product: Product;
+  onClone: (product: Product) => void;
+  label: string;
+}
+
+const CloneButton = memo<CloneButtonProps>(function CloneButton({
+  product,
+  onClone,
+  label,
+}) {
+  const handleClick = useCallback(() => {
+    onClone(product);
+  }, [product, onClone]);
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleClick}
+      className="h-8 w-8 p-0"
+      aria-label={label}
+    >
+      <Copy className="h-4 w-4" />
+    </Button>
+  );
+});
+
+interface ProductActionsCellProps {
+  product: Product;
+  onEdit: (product: Product) => void;
+  onClone: (product: Product) => void;
+  editLabel: string;
+  cloneLabel: string;
+}
+
+const ProductActionsCell = memo<ProductActionsCellProps>(
+  function ProductActionsCell({
+    product,
+    onEdit,
+    onClone,
+    editLabel,
+    cloneLabel,
+  }) {
+    return (
+      <div className="flex items-center space-x-2">
+        <EditButton product={product} onEdit={onEdit} label={editLabel} />
+        <CloneButton product={product} onClone={onClone} label={cloneLabel} />
+      </div>
+    );
+  }
+);
+
+// Delete Confirmation Modal - 별도 컴포넌트로 분리
+interface DeleteConfirmModalProps {
+  product: Product | null;
+  onClose: () => void;
+  onConfirm: (productId: string) => Promise<void>;
+  t: (key: string, params?: any) => string;
+}
+
+const DeleteConfirmModal = memo<DeleteConfirmModalProps>(
+  function DeleteConfirmModal({ product, onClose, onConfirm, t }) {
+    const handleConfirm = useCallback(async () => {
+      if (product) {
+        await onConfirm(product.id);
+        onClose();
+      }
+    }, [product, onConfirm, onClose]);
+
+    if (!product) return null;
+
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('products.deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('products.deleteConfirmMessage', {
+                name: product.name,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-center">
+                <div className="h-5 w-5 text-red-400 mr-2">⚠️</div>
+                <div>
+                  <h4 className="text-sm font-medium text-red-800">
+                    {t('products.deleteWarningTitle')}
+                  </h4>
+                  <p className="text-sm text-red-600 mt-1">
+                    {t('products.deleteWarningMessage')}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button variant="outline" onClick={onClose}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="destructive" onClick={handleConfirm}>
+                {t('common.delete')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+);
+
+// Main Products Page Component
+const ProductsPage = memo(function ProductsPage() {
+  const { t } = useTranslation();
+
+  // 각 상태를 개별적으로 구독 (완전한 리렌더링 방지)
+  const selectedProducts = useProductsStore((state) => state.selectedProducts);
+  const toggleProductSelection = useProductsStore(
+    (state) => state.toggleProductSelection
+  );
+  const selectAllProducts = useProductsStore(
+    (state) => state.selectAllProducts
+  );
+  const clearSelection = useProductsStore((state) => state.clearSelection);
+  const clearAllFilters = useProductsStore((state) => state.clearAllFilters);
+
+  // 데이터 관련 상태들
+  const products = useProductsStore((state) => state.products);
+  const categories = useProductsStore((state) => state.categories);
+  const loading = useProductsStore((state) => state.loading);
+  const error = useProductsStore((state) => state.error);
+  const searchTerm = useProductsStore((state) => state.searchTerm);
+  const selectedCategory = useProductsStore((state) => state.selectedCategory);
+  const sortField = useProductsStore((state) => state.sortField);
+  const sortOrder = useProductsStore((state) => state.sortOrder);
+  const editingProduct = useProductsStore((state) => state.editingProduct);
+
+  // Pagination 상태들
+  const currentPage = useProductsStore((state) => state.currentPage);
+  const itemsPerPage = useProductsStore((state) => state.itemsPerPage);
+  const totalItems = useProductsStore((state) => state.totalItems);
+
+  // 액션 함수들
+  const setSearchTerm = useProductsStore((state) => state.setSearchTerm);
+  const setSelectedCategory = useProductsStore(
+    (state) => state.setSelectedCategory
+  );
+  const setSorting = useProductsStore((state) => state.setSorting);
+  const setEditingProduct = useProductsStore(
+    (state) => state.setEditingProduct
+  );
+  const updateProduct = useProductsStore((state) => state.updateProduct);
+  const addProduct = useProductsStore((state) => state.addProduct);
+  const deleteProduct = useProductsStore((state) => state.deleteProduct);
+  const refreshData = useProductsStore((state) => state.refreshData);
+  const bulkDeleteProducts = useProductsStore(
+    (state) => state.bulkDeleteProducts
+  );
+  const cloneProduct = useProductsStore((state) => state.cloneProduct);
+  const exportProductsToExcel = useProductsStore(
+    (state) => state.exportProductsToExcel
+  );
+  const setCurrentPage = useProductsStore((state) => state.setCurrentPage);
+  const setItemsPerPage = useProductsStore((state) => state.setItemsPerPage);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+
+  // Stable references using refs
+  const handleEditProductRef = useRef<(product: Product) => void>(() => {});
+  const handleCloneProductRef = useRef<(product: Product) => void>(() => {});
+  const formatPriceRef = useRef<(price: number) => string>(() => '');
+  const getStockBadgeVariantRef = useRef<
+    (stock: number) => 'success' | 'warning' | 'danger'
+  >(() => 'success');
+  const getStockBadgeTextRef = useRef<(stock: number) => string>(() => '');
+  const tRef = useRef(t);
+
+  tRef.current = t;
 
   useEffect(() => {
     refreshData();
-  }, [refreshData]);
 
-  const handleAddProduct = useCallback(
-    async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
-      try {
-        await addProduct(productData);
-        setShowAddModal(false);
-      } catch (error) {
-        console.error('Failed to add product:', error);
-      }
-    },
-    [addProduct]
-  );
+    // Cleanup function to clear all filters and selection when leaving the page
+    return () => {
+      clearAllFilters(); // This clears both filters and selection
+    };
+  }, [refreshData, clearAllFilters]);
 
-  const handleDeleteProduct = useCallback(async () => {
-    if (!deletingProduct) return;
-
-    try {
-      await deleteProduct(deletingProduct.id);
-      setDeletingProduct(null);
-    } catch (error) {
-      console.error('Failed to delete product:', error);
-    }
-  }, [deletingProduct, deleteProduct]);
-
-  const handleBulkDelete = useCallback(async () => {
-    try {
-      await bulkDeleteProducts(selectedProducts);
-      setShowBulkDeleteModal(false);
-    } catch (error) {
-      console.error('Failed to bulk delete products:', error);
-    }
-  }, [selectedProducts, bulkDeleteProducts]);
-
-  const handleBulkEdit = useCallback(async () => {
-    if (!bulkEditData) return;
-
-    try {
-      await bulkUpdateProducts(selectedProducts, bulkEditData);
-      setShowBulkEditModal(false);
-    } catch (error) {
-      console.error('Failed to bulk edit products:', error);
-    }
-  }, [selectedProducts, bulkEditData, bulkUpdateProducts]);
-
-  const handleCloneProduct = useCallback(
-    async (product: Product) => {
-      try {
-        await cloneProduct(product);
-      } catch (error) {
-        console.error('Failed to clone product:', error);
-      }
-    },
-    [cloneProduct]
-  );
-
-  const isAllSelected =
-    products.length > 0 && selectedProducts.length === products.length;
-  const isSomeSelected = selectedProducts.length > 0;
-
-  const handleSelectAll = useCallback(() => {
-    if (isAllSelected) {
-      clearSelection();
-    } else {
-      selectAllProducts();
-    }
-  }, [isAllSelected, clearSelection, selectAllProducts]);
-
-  const formatPrice = useCallback((price: number) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-    }).format(price);
-  }, []);
-
-  const getStockBadgeVariant = useCallback((stock: number) => {
-    if (stock === 0) return 'destructive';
-    if (stock < 10) return 'outline';
-    return 'secondary';
-  }, []);
-
-  const getStockBadgeText = useCallback((stock: number) => {
-    if (stock === 0) return '품절';
-    if (stock < 10) return '재고 부족';
-    return '재고 충분';
-  }, []);
-
-  const getSortIcon = useCallback(
-    (field: SortField) => {
-      if (sortField !== field) {
-        return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
-      }
-
-      if (sortOrder === 'asc') {
-        return <ArrowUp className="h-4 w-4 text-blue-600" />;
-      } else if (sortOrder === 'desc') {
-        return <ArrowDown className="h-4 w-4 text-blue-600" />;
-      } else {
-        return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
-      }
-    },
-    [sortField, sortOrder]
-  );
-
-  // Calculate KPI data from products - Memoized for performance
+  // Memoized calculations
   const kpiData = useMemo(() => {
     const totalProducts = products.length;
     const totalValue = products.reduce(
@@ -764,783 +406,441 @@ export default function ProductsPage() {
       (product) => product.stock === 0
     ).length;
 
-    return {
-      totalProducts,
-      totalValue,
-      lowStockProducts,
-      outOfStockProducts,
-    };
+    return { totalProducts, totalValue, lowStockProducts, outOfStockProducts };
   }, [products]);
 
-  // Memoized selected products filter
-  const selectedProductsData = useMemo(() => {
-    return products.filter((p) => selectedProducts.includes(p.id));
-  }, [products, selectedProducts]);
+  const formatPrice = useCallback((price: number) => {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW',
+    }).format(price);
+  }, []);
+
+  const getStockBadgeVariant = useCallback(
+    (stock: number): 'success' | 'warning' | 'danger' => {
+      if (stock === 0) return 'danger';
+      if (stock < 10) return 'warning';
+      return 'success';
+    },
+    []
+  );
+
+  const getStockBadgeText = useCallback(
+    (stock: number) => {
+      if (stock === 0) return t('products.outOfStock');
+      if (stock < 10) return t('products.lowStock');
+      return t('products.inStock');
+    },
+    [t]
+  );
+
+  // Stable handlers that don't change reference
+  const stableHandleEditProduct = useCallback(
+    (product: Product) => {
+      setEditingProduct(product);
+    },
+    [setEditingProduct]
+  );
+
+  const stableHandleCloneProduct = useCallback(
+    async (product: Product) => {
+      await cloneProduct(product);
+    },
+    [cloneProduct]
+  );
+
+  // Update refs
+  handleEditProductRef.current = stableHandleEditProduct;
+  handleCloneProductRef.current = stableHandleCloneProduct;
+  formatPriceRef.current = formatPrice;
+  getStockBadgeVariantRef.current = getStockBadgeVariant;
+  getStockBadgeTextRef.current = getStockBadgeText;
+
+  // Handlers - 메모이제이션된 핸들러
+  const handleCloseEditModal = useCallback(() => {
+    setEditingProduct(null);
+  }, [setEditingProduct]);
+
+  const handleCloseAddModal = useCallback(() => {
+    setShowAddModal(false);
+  }, []);
+
+  const handleOpenAddModal = useCallback(() => {
+    setShowAddModal(true);
+  }, []);
+
+  const handleProductSubmit = useCallback(
+    async (data: any) => {
+      setFormLoading(true);
+      try {
+        if (editingProduct) {
+          const updatedProduct = { ...editingProduct, ...data };
+          await updateProduct(updatedProduct);
+        } else {
+          await addProduct(data);
+        }
+      } finally {
+        setFormLoading(false);
+      }
+    },
+    [editingProduct, updateProduct, addProduct]
+  );
+
+  const handleDeleteProduct = useCallback(
+    async (productId: string) => {
+      await deleteProduct(productId);
+    },
+    [deleteProduct]
+  );
+
+  const handleCloseDeleteModal = useCallback(() => {
+    setDeletingProduct(null);
+  }, []);
+
+  // 라벨들을 메모이제이션
+  const actionLabels = useMemo(
+    () => ({
+      edit: t('products.editProduct'),
+      clone: t('products.cloneProduct'),
+    }),
+    [t]
+  );
+
+  // Static column definitions with stable cell renderers
+  const columns: ColumnDef<Product>[] = useMemo(
+    () => [
+      {
+        id: 'image',
+        header: t('products.image'),
+        sortable: false,
+        width: '80px',
+        cell: (product: Product) => <ProductImageCell product={product} />,
+      },
+      {
+        id: 'name',
+        header: t('products.name'),
+        sortable: true,
+        cell: (product: Product) => <ProductNameCell product={product} />,
+      },
+      {
+        id: 'price',
+        header: t('products.price'),
+        sortable: true,
+        cell: (product: Product) => (
+          <ProductPriceCell
+            product={product}
+            formatPrice={formatPriceRef.current!}
+          />
+        ),
+      },
+      {
+        id: 'stock',
+        header: t('products.stock'),
+        sortable: true,
+        cell: (product: Product) => (
+          <ProductStockCell
+            product={product}
+            getStockBadgeVariant={getStockBadgeVariantRef.current!}
+            getStockBadgeText={getStockBadgeTextRef.current!}
+          />
+        ),
+      },
+      {
+        id: 'updated_at',
+        header: t('products.lastModified'),
+        sortable: true,
+        cell: (product: Product) => <ProductDateCell product={product} />,
+      },
+      {
+        id: 'actions',
+        header: t('common.actions'),
+        sortable: false,
+        width: '120px',
+        cell: (product: Product) => (
+          <ProductActionsCell
+            product={product}
+            onEdit={handleEditProductRef.current!}
+            onClone={handleCloneProductRef.current!}
+            editLabel={actionLabels.edit}
+            cloneLabel={actionLabels.clone}
+          />
+        ),
+      },
+    ],
+    [t, actionLabels] // Only depend on t and actionLabels, not on handlers
+  );
+
+  // Filter options for SearchBar
+  const categoryOptions = useMemo(
+    () =>
+      categories.map((category) => ({
+        value: category,
+        label: category === 'all' ? t('products.allCategories') : category,
+      })),
+    [categories, t]
+  );
+
+  // Bulk actions
+  const bulkActions = useMemo(
+    () => [
+      {
+        id: 'edit',
+        label: t('products.bulkEdit'),
+        variant: 'outline' as const,
+        icon: <Edit className="h-4 w-4" />,
+        onClick: () => {
+          /* Handle bulk edit */
+        },
+      },
+      {
+        id: 'delete',
+        label: t('products.bulkDelete'),
+        variant: 'destructive' as const,
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => bulkDeleteProducts(selectedProducts),
+      },
+    ],
+    [t, bulkDeleteProducts, selectedProducts]
+  );
+
+  // Header actions - 완전히 독립적인 메모이제이션
+  const headerActions = useMemo(
+    () => (
+      <>
+        <Button variant="outline" onClick={refreshData} disabled={loading}>
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+          />
+          {t('common.refresh')}
+        </Button>
+        <Button variant="outline" onClick={exportProductsToExcel}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          {t('products.excelExport')}
+        </Button>
+        <Button variant="outline" onClick={handleOpenAddModal}>
+          <Plus className="h-4 w-4 mr-2" />
+          {t('products.addProduct')}
+        </Button>
+      </>
+    ),
+    [refreshData, loading, exportProductsToExcel, handleOpenAddModal, t]
+  );
+
+  // KPI Section - 독립적인 메모이제이션
+  const kpiSection = useMemo(
+    () => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
+        <KPICard
+          title={t('products.totalProducts')}
+          value={kpiData.totalProducts}
+          icon={Package}
+          loading={loading}
+          description={t('products.registeredProducts')}
+        />
+        <KPICard
+          title={t('products.totalStockValue')}
+          value={formatPrice(kpiData.totalValue)}
+          icon={DollarSign}
+          loading={loading}
+          description={t('products.currentStock')}
+        />
+        <KPICard
+          title={t('products.lowStockProducts')}
+          value={kpiData.lowStockProducts}
+          icon={TrendingUp}
+          loading={loading}
+          description={t('products.lessThan10')}
+          valueFormatter={(val) => `${val}`}
+        />
+        <KPICard
+          title={t('products.outOfStockProducts')}
+          value={kpiData.outOfStockProducts}
+          icon={Trash2}
+          loading={loading}
+          description={t('products.zeroStock')}
+          valueFormatter={(val) => `${val}`}
+        />
+      </motion.div>
+    ),
+    [kpiData, loading, formatPrice, t]
+  );
+
+  // Controls Section - 독립적인 메모이제이션
+  const controlsSection = useMemo(
+    () => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="space-y-4"
+      >
+        <SearchBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          placeholder={t('products.searchByName')}
+          filterValue={selectedCategory}
+          onFilterChange={setSelectedCategory}
+          filterOptions={categoryOptions}
+          filterPlaceholder={t('products.categorySelect')}
+          debounceMs={1500} // 1.5초 debounce
+        />
+        <BulkActionBar
+          selectedCount={selectedProducts.length}
+          onClearSelection={clearSelection}
+          actions={bulkActions}
+        />
+      </motion.div>
+    ),
+    [
+      searchTerm,
+      selectedCategory,
+      categoryOptions,
+      selectedProducts.length,
+      setSearchTerm,
+      setSelectedCategory,
+      clearSelection,
+      bulkActions,
+      t,
+    ]
+  );
+
+  // Table Section - 독립적인 메모이제이션
+  const tableSection = useMemo(
+    () => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <DataTable
+          data={products}
+          columns={columns}
+          loading={loading}
+          error={error}
+          sortConfig={{
+            field: sortField || '',
+            order: sortOrder === 'none' ? null : sortOrder,
+          }}
+          onSort={(field) => setSorting(field as SortField)}
+          selectedItems={selectedProducts}
+          onItemSelect={toggleProductSelection}
+          onSelectAll={selectAllProducts}
+          getItemId={(product) => product.id}
+          emptyStateIcon={Package}
+          emptyStateTitle={t('products.noProducts') || 'No products found'}
+          emptyStateDescription={
+            t('products.productListDescription', {
+              count: products.length.toString(),
+            }) || 'No products found'
+          }
+          showPagination={true}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={totalItems}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
+      </motion.div>
+    ),
+    [
+      products,
+      columns,
+      loading,
+      error,
+      sortField,
+      sortOrder,
+      selectedProducts,
+      setSorting,
+      toggleProductSelection,
+      selectAllProducts,
+      t,
+      currentPage,
+      itemsPerPage,
+      totalItems,
+      setCurrentPage,
+      setItemsPerPage,
+    ]
+  );
+
+  // Add Modal - 조건부 렌더링으로 최적화
+  const addModal = useMemo(() => {
+    if (!showAddModal) return null;
+
+    return (
+      <ProductFormModal
+        open={true}
+        onOpenChange={handleCloseAddModal}
+        categories={categories}
+        onSubmit={handleProductSubmit}
+        loading={formLoading}
+      />
+    );
+  }, [
+    showAddModal,
+    handleCloseAddModal,
+    categories,
+    handleProductSubmit,
+    formLoading,
+  ]);
+
+  // Edit Modal - 조건부 렌더링으로 최적화
+  const editModal = useMemo(() => {
+    if (!editingProduct) return null;
+
+    return (
+      <ProductFormModal
+        open={true}
+        onOpenChange={handleCloseEditModal}
+        product={editingProduct}
+        categories={categories}
+        onSubmit={handleProductSubmit}
+        loading={formLoading}
+      />
+    );
+  }, [
+    editingProduct,
+    handleCloseEditModal,
+    categories,
+    handleProductSubmit,
+    formLoading,
+  ]);
+
+  // Delete Modal - 조건부 렌더링으로 최적화
+  const deleteModal = useMemo(() => {
+    if (!deletingProduct) return null;
+
+    return (
+      <DeleteConfirmModal
+        product={deletingProduct}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleDeleteProduct}
+        t={t}
+      />
+    );
+  }, [deletingProduct, handleCloseDeleteModal, handleDeleteProduct, t]);
 
   return (
-    <AdminLayout>
-      <div className="h-full bg-background dark:bg-background">
-        {/* Page Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-card dark:bg-card border-b border-border dark:border-border px-6 py-4"
-        >
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground dark:text-foreground">
-                상품 관리
-              </h1>
-              <p className="text-sm font-medium text-muted-foreground dark:text-muted-foreground">
-                재고 현황과 상품 정보를 관리하세요
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {error && (
-                <Badge variant="destructive" className="mr-2">
-                  데이터 로드 오류
-                </Badge>
-              )}
-              <Button
-                variant="outline"
-                onClick={refreshData}
-                disabled={loading}
-                className="cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
-                />
-                새로고침
-              </Button>
-
-              {/* Excel Export Button */}
-              <Button
-                variant="outline"
-                onClick={() => exportProductsToExcel()}
-                className="cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Excel로 내보내기
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => setShowAddModal(true)}
-                className="cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                상품 추가
-              </Button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Main Content */}
-        <div className="p-6">
-          {/* KPI Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
-          >
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  총 상품 수
-                </CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {kpiData.totalProducts}
-                </div>
-                <p className="text-xs text-muted-foreground">등록된 상품</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  총 재고 가치
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatPrice(kpiData.totalValue)}
-                </div>
-                <p className="text-xs text-muted-foreground">현재 재고 기준</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  재고 부족 상품
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {kpiData.lowStockProducts}
-                </div>
-                <p className="text-xs text-muted-foreground">10개 미만 상품</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">품절 상품</CardTitle>
-                <Trash2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {kpiData.outOfStockProducts}
-                </div>
-                <p className="text-xs text-muted-foreground">재고 0개 상품</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Filters and Search */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="rounded-lg shadow-sm border p-4 mb-6"
-          >
-            <div className="flex flex-col sm:flex-row gap-2">
-              {/* 카테고리 드롭다운 - 왼쪽 */}
-              <div className="sm:w-36">
-                <Select
-                  value={selectedCategory}
-                  onValueChange={setSelectedCategory}
-                >
-                  <SelectTrigger className="cursor-pointer hover:bg-gray-50 transition-colors">
-                    <SelectValue placeholder="카테고리 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem
-                        key={category}
-                        value={category}
-                        className="cursor-pointer hover:bg-gray-100 transition-colors"
-                      >
-                        {category === 'all' ? '전체 카테고리' : category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 검색창 - 오른쪽 */}
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4" />
-                  <Input
-                    placeholder="상품명으로 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Bulk Actions Bar */}
-          {isSomeSelected && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <CheckSquare className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">
-                    {selectedProducts.length}개 상품 선택됨
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearSelection}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
-                  >
-                    선택 해제
-                  </Button>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowBulkEditModal(true)}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    일괄 수정
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowBulkDeleteModal(true)}
-                    className="text-red-600 border-red-300 hover:bg-red-100"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    일괄 삭제
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Products Table */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>상품 목록</CardTitle>
-                <CardDescription>
-                  총 {products.length}개의 상품이 등록되어 있습니다
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                    <span>데이터를 불러오는 중...</span>
-                  </div>
-                ) : products.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>등록된 상품이 없습니다.</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleSelectAll}
-                            className="h-auto p-1"
-                          >
-                            {isAllSelected ? (
-                              <CheckSquare className="h-4 w-4" />
-                            ) : (
-                              <Square className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead className="w-20">이미지</TableHead>
-                        <TableHead className="flex justify-center">
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
-                            onClick={() => setSorting('name')}
-                          >
-                            상품명
-                            {getSortIcon('name')}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
-                            onClick={() => setSorting('category')}
-                          >
-                            카테고리
-                            {getSortIcon('category')}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
-                            onClick={() => setSorting('price')}
-                          >
-                            가격
-                            {getSortIcon('price')}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
-                            onClick={() => setSorting('stock')}
-                          >
-                            재고
-                            {getSortIcon('stock')}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
-                            onClick={() => setSorting('status')}
-                          >
-                            상태
-                            {getSortIcon('status')}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-0 font-medium hover:bg-gray-100 cursor-pointer transition-colors rounded-md px-2 py-1"
-                            onClick={() => setSorting('created_at')}
-                          >
-                            등록일
-                            {getSortIcon('created_at')}
-                          </Button>
-                        </TableHead>
-                        <TableHead className="flex justify-center">
-                          작업
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {products.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell className="w-12">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleProductSelection(product.id)}
-                              className="h-auto p-1"
-                            >
-                              {selectedProducts.includes(product.id) ? (
-                                <CheckSquare className="h-4 w-4 text-blue-600" />
-                              ) : (
-                                <Square className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </TableCell>
-                          <TableCell className="w-20">
-                            {product.image_url ? (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <div className="cursor-pointer hover:opacity-80 transition-opacity">
-                                    <OptimizedImage
-                                      src={product.image_url}
-                                      alt={product.name}
-                                      width={48}
-                                      height={48}
-                                      className="w-12 h-12 object-cover rounded-md"
-                                      priority={false}
-                                    />
-                                  </div>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle>{product.name}</DialogTitle>
-                                    <DialogDescription>
-                                      상품 이미지
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="flex justify-center">
-                                    <OptimizedImage
-                                      src={product.image_url}
-                                      alt={product.name}
-                                      width={640}
-                                      height={480}
-                                      className="max-w-full max-h-96 object-contain rounded-lg"
-                                      unoptimized={false}
-                                    />
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            ) : (
-                              <div className="w-12 h-12 rounded-md flex items-center justify-center">
-                                <Package className="h-6 w-6 text-gray-400" />
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-medium flex justify-center">
-                            {product.name}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{product.category}</Badge>
-                          </TableCell>
-                          <TableCell>{formatPrice(product.price)}</TableCell>
-                          <TableCell>
-                            {product.stock?.toLocaleString() || 0}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={getStockBadgeVariant(product.stock || 0)}
-                            >
-                              {getStockBadgeText(product.stock || 0)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(product.created_at).toLocaleDateString(
-                              'ko-KR'
-                            )}
-                          </TableCell>
-                          <TableCell className="">
-                            <div className="flex justify-center space-x-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>{product.name}</DialogTitle>
-                                    <DialogDescription>
-                                      상품 상세 정보
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <label className="text-sm font-medium">
-                                        카테고리
-                                      </label>
-                                      <p className="text-sm text-gray-600">
-                                        {product.category}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium">
-                                        가격
-                                      </label>
-                                      <p className="text-sm text-gray-600">
-                                        {formatPrice(product.price)}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium">
-                                        재고 수량
-                                      </label>
-                                      <p className="text-sm text-gray-600">
-                                        {product.stock || 0}개
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium">
-                                        등록일
-                                      </label>
-                                      <p className="text-sm text-gray-600">
-                                        {new Date(
-                                          product.created_at
-                                        ).toLocaleString('ko-KR')}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium">
-                                        최종 수정일
-                                      </label>
-                                      <p className="text-sm text-gray-600">
-                                        {new Date(
-                                          product.updated_at
-                                        ).toLocaleString('ko-KR')}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setEditingProduct(product)}
-                                    className="cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>상품 수정</DialogTitle>
-                                    <DialogDescription>
-                                      {editingProduct?.name} 정보를 수정합니다
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  {editingProduct && (
-                                    <EditProductForm
-                                      product={editingProduct}
-                                      onSave={updateProduct}
-                                      onCancel={() => setEditingProduct(null)}
-                                    />
-                                  )}
-                                </DialogContent>
-                              </Dialog>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCloneProduct(product)}
-                                className="cursor-pointer hover:bg-green-50 hover:border-green-300 transition-colors"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDeletingProduct(product)}
-                                className="cursor-pointer hover:bg-red-50 hover:border-red-300 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Add Product Modal */}
-        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>상품 추가</DialogTitle>
-              <DialogDescription>새로운 상품을 등록합니다</DialogDescription>
-            </DialogHeader>
-            <AddProductForm
-              onSave={handleAddProduct}
-              onCancel={() => setShowAddModal(false)}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Modal */}
-        <Dialog
-          open={!!deletingProduct}
-          onOpenChange={() => setDeletingProduct(null)}
-        >
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>상품 삭제</DialogTitle>
-              <DialogDescription>
-                정말로 &quot;{deletingProduct?.name}&quot; 상품을
-                삭제하시겠습니까?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                <div className="flex items-center">
-                  <div className="h-5 w-5 text-red-400 mr-2">⚠️</div>
-                  <div>
-                    <h4 className="text-sm font-medium text-red-800">
-                      삭제 주의사항
-                    </h4>
-                    <p className="text-sm text-red-600 mt-1">
-                      삭제된 상품은 복구할 수 없습니다. 신중하게 결정해주세요.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {deletingProduct && (
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">상품명:</span>
-                    <span className="text-sm">{deletingProduct.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">카테고리:</span>
-                    <span className="text-sm">{deletingProduct.category}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">가격:</span>
-                    <span className="text-sm">
-                      {formatPrice(deletingProduct.price)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">재고:</span>
-                    <span className="text-sm">{deletingProduct.stock}개</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeletingProduct(null)}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  취소
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteProduct}
-                  className="cursor-pointer hover:bg-red-600 transition-colors"
-                >
-                  삭제
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Bulk Delete Confirmation Modal */}
-        <Dialog
-          open={showBulkDeleteModal}
-          onOpenChange={setShowBulkDeleteModal}
-        >
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>상품 일괄 삭제</DialogTitle>
-              <DialogDescription>
-                선택된 {selectedProducts.length}개 상품을 삭제하시겠습니까?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                <div className="flex items-center">
-                  <div className="h-5 w-5 text-red-400 mr-2">⚠️</div>
-                  <div>
-                    <h4 className="text-sm font-medium text-red-800">
-                      일괄 삭제 주의사항
-                    </h4>
-                    <p className="text-sm text-red-600 mt-1">
-                      삭제된 상품들은 복구할 수 없습니다. 신중하게 결정해주세요.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="max-h-32 overflow-y-auto">
-                <div className="text-sm font-medium mb-2">
-                  삭제될 상품 목록:
-                </div>
-                {selectedProductsData.map((product) => (
-                  <div key={product.id} className="text-sm text-gray-600 py-1">
-                    • {product.name} ({product.category})
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowBulkDeleteModal(false)}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  취소
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleBulkDelete}
-                  className="cursor-pointer hover:bg-red-600 transition-colors"
-                >
-                  {selectedProducts.length}개 삭제
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Bulk Edit Modal */}
-        <Dialog open={showBulkEditModal} onOpenChange={setShowBulkEditModal}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>상품 일괄 수정</DialogTitle>
-              <DialogDescription>
-                선택된 {selectedProducts.length}개 상품을 수정합니다
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700">
-                  빈 필드는 기존 값이 유지됩니다.
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="bulk-category">카테고리</Label>
-                <Input
-                  id="bulk-category"
-                  value={bulkEditData?.category || ''}
-                  onChange={(e) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      category: e.target.value,
-                    })
-                  }
-                  placeholder="새 카테고리 (선택사항)"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="bulk-price">가격</Label>
-                <Input
-                  id="bulk-price"
-                  type="number"
-                  value={bulkEditData?.price || ''}
-                  onChange={(e) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      price: Number(e.target.value),
-                    })
-                  }
-                  placeholder="새 가격 (선택사항)"
-                  min="0"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="bulk-stock">재고</Label>
-                <Input
-                  id="bulk-stock"
-                  type="number"
-                  value={bulkEditData?.stock || ''}
-                  onChange={(e) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      stock: Number(e.target.value),
-                    })
-                  }
-                  placeholder="새 재고 (선택사항)"
-                  min="0"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowBulkEditModal(false);
-                    setBulkEditData(null);
-                  }}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  취소
-                </Button>
-                <Button
-                  onClick={handleBulkEdit}
-                  disabled={
-                    !bulkEditData ||
-                    (!bulkEditData.category &&
-                      !bulkEditData.price &&
-                      !bulkEditData.stock)
-                  }
-                  className="cursor-pointer hover:bg-blue-600 transition-colors"
-                >
-                  {selectedProducts.length}개 수정
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </AdminLayout>
+    <>
+      <ProductsTemplate
+        title={t('products.managementTitle')}
+        description={t('products.managementDescription')}
+        headerActions={headerActions}
+        kpiSection={kpiSection}
+        controlsSection={controlsSection}
+        tableSection={tableSection}
+        modals={null} // modals를 별도로 렌더링
+        loading={loading}
+      />
+      {addModal}
+      {editModal}
+      {deleteModal}
+    </>
   );
-}
+});
+
+export default ProductsPage;

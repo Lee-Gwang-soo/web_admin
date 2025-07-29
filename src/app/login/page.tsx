@@ -238,7 +238,7 @@ export default function LoginPage() {
               {t('auth.login')}
             </CardTitle>
             <CardDescription className="text-center">
-              Supabase 계정으로 대시보드에 접속하세요
+              {t('auth.loginDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -391,7 +391,7 @@ export default function LoginPage() {
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
-                    정보
+                    {t('common.info')}
                   </span>
                 </div>
               </div>
@@ -399,15 +399,15 @@ export default function LoginPage() {
               {/* Supabase 정보 */}
               <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-2">
-                  🚀 Supabase 인증 시스템
+                  {t('auth.supabaseAuthSystem')}
                 </p>
                 <div className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
-                  <p>• 실제 Supabase Authentication 사용</p>
-                  <p>• 이메일 확인 기반 회원가입</p>
-                  <p>• GitHub OAuth 소셜 로그인</p>
-                  <p>• 보안 세션 관리</p>
+                  <p>{t('auth.supabaseFeatures.realAuth')}</p>
+                  <p>{t('auth.supabaseFeatures.emailConfirmation')}</p>
+                  <p>{t('auth.supabaseFeatures.githubOauth')}</p>
+                  <p>{t('auth.supabaseFeatures.secureSession')}</p>
                   <p className="text-blue-500 dark:text-blue-400 mt-2">
-                    계정이 없다면 회원가입을 먼저 진행해주세요.
+                    {t('auth.pleaseSignupFirst')}
                   </p>
                 </div>
               </div>
@@ -420,7 +420,7 @@ export default function LoginPage() {
                     href="/signup"
                     className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                   >
-                    새 계정 만들기
+                    {t('auth.newAccountCreate')}
                   </Link>
                 </p>
               </div>

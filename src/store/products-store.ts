@@ -1,16 +1,17 @@
+import { Product, supabaseApi } from '@/lib/supabase';
 import { create } from 'zustand';
-import { supabaseApi, Product } from '@/lib/supabase';
 
 export type SortField =
   | 'name'
-  | 'category'
   | 'price'
   | 'stock'
-  | 'status'
-  | 'created_at';
+  | 'category'
+  | 'updated_at'
+  | 'created_at'
+  | 'status';
 export type SortOrder = 'asc' | 'desc' | 'none';
 
-export interface ProductsState {
+interface ProductsState {
   products: Product[];
   categories: string[];
   loading: boolean;
@@ -22,34 +23,42 @@ export interface ProductsState {
   editingProduct: Product | null;
   selectedProducts: string[];
   bulkEditData: Partial<Pick<Product, 'category' | 'price' | 'stock'>> | null;
+
+  // Pagination
+  currentPage: number;
+  itemsPerPage: number;
+  totalItems: number;
+
+  // Actions
   fetchProducts: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   setSearchTerm: (term: string) => void;
   setSelectedCategory: (category: string) => void;
   setSorting: (field: SortField) => void;
-  setEditingProduct: (product: Product | null) => void;
-  updateProduct: (product: Product) => Promise<void>;
   addProduct: (
-    productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>
+    product: Omit<Product, 'id' | 'created_at' | 'updated_at'>
   ) => Promise<void>;
-  deleteProduct: (productId: string) => Promise<void>;
-  // Bulk operations
-  toggleProductSelection: (productId: string) => void;
+  updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  bulkDeleteProducts: (ids: string[]) => Promise<void>;
+  setEditingProduct: (product: Product | null) => void;
+
+  // Selection
+  toggleProductSelection: (id: string) => void;
   selectAllProducts: () => void;
   clearSelection: () => void;
-  bulkDeleteProducts: (productIds: string[]) => Promise<void>;
-  bulkUpdateProducts: (
-    productIds: string[],
-    updates: Partial<Pick<Product, 'category' | 'price' | 'stock'>>
-  ) => Promise<void>;
-  setBulkEditData: (
-    data: Partial<Pick<Product, 'category' | 'price' | 'stock'>> | null
-  ) => void;
-  // Clone operation
+  clearAllFilters: () => void; // 새로운 함수 - 모든 필터와 검색어 초기화
+
+  // Clone and export
   cloneProduct: (product: Product) => Promise<void>;
-  // Export operations
   exportProductsToExcel: () => void;
   refreshData: () => Promise<void>;
+
+  // Pagination actions
+  setCurrentPage: (page: number) => void;
+  setItemsPerPage: (itemsPerPage: number) => void;
+  nextPage: () => void;
+  prevPage: () => void;
 }
 
 export const useProductsStore = create<ProductsState>((set, get) => ({
@@ -65,19 +74,61 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   selectedProducts: [],
   bulkEditData: null,
 
+  // Pagination
+  currentPage: 1,
+  itemsPerPage: 10,
+  totalItems: 0,
+
   fetchProducts: async () => {
     try {
       set({ loading: true, error: null });
 
+      // 현재 검색 조건 가져오기
       const { searchTerm, selectedCategory } = get();
-      const products = await supabaseApi.getProducts(
-        searchTerm || undefined,
-        selectedCategory !== 'all' ? selectedCategory : undefined
+
+      console.log('🔍 Fetching products with:', {
+        searchTerm,
+        selectedCategory,
+      });
+
+      // 모든 제품 가져오기
+      const allProducts = await supabaseApi.getProducts();
+
+      // 클라이언트 사이드 필터링
+      let filteredProducts = allProducts;
+
+      // 검색어 필터링
+      if (searchTerm && searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        filteredProducts = filteredProducts.filter(
+          (product) =>
+            product.name.toLowerCase().includes(searchLower) ||
+            product.category.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // 카테고리 필터링
+      if (selectedCategory && selectedCategory !== 'all') {
+        filteredProducts = filteredProducts.filter(
+          (product) => product.category === selectedCategory
+        );
+      }
+
+      console.log(
+        '🔍 Filtered products:',
+        filteredProducts.length,
+        '/',
+        allProducts.length
       );
 
-      set({ products, loading: false });
+      set({
+        products: filteredProducts,
+        totalItems: filteredProducts.length,
+        loading: false,
+        currentPage: 1, // 검색시 첫 페이지로 이동
+      });
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Failed to fetch products:', error);
       set({
         error:
           error instanceof Error ? error.message : 'Failed to fetch products',
@@ -89,25 +140,24 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   fetchCategories: async () => {
     try {
       const categories = await supabaseApi.getProductCategories();
-      set({ categories: ['all', ...categories] });
+      const allCategories = ['all', ...categories];
+      set({ categories: allCategories });
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      set({ categories: ['all'] });
+      console.error('Failed to fetch categories:', error);
     }
   },
 
   setSearchTerm: (term: string) => {
+    console.log('🔍 Setting search term:', term);
     set({ searchTerm: term });
-    // Debounce search - fetch after a delay
-    setTimeout(() => {
-      if (get().searchTerm === term) {
-        get().fetchProducts();
-      }
-    }, 300);
+    // 검색어 변경시 자동으로 데이터 새로고침
+    get().fetchProducts();
   },
 
   setSelectedCategory: (category: string) => {
+    console.log('🔍 Setting category:', category);
     set({ selectedCategory: category });
+    // 카테고리 변경시 자동으로 데이터 새로고침
     get().fetchProducts();
   },
 
@@ -273,12 +323,34 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   },
 
   selectAllProducts: () => {
-    const { products } = get();
-    set({ selectedProducts: products.map((p) => p.id) });
+    const { products, selectedProducts } = get();
+    const allProductIds = products.map((p) => p.id);
+
+    // Toggle logic: if all are selected, clear selection; otherwise select all
+    if (
+      selectedProducts.length === allProductIds.length &&
+      allProductIds.length > 0
+    ) {
+      set({ selectedProducts: [] });
+    } else {
+      set({ selectedProducts: allProductIds });
+    }
   },
 
   clearSelection: () => {
     set({ selectedProducts: [] });
+  },
+
+  clearAllFilters: () => {
+    set({
+      searchTerm: '',
+      selectedCategory: 'all',
+      sortField: null,
+      sortOrder: 'none',
+      currentPage: 1,
+      selectedProducts: [], // selection도 함께 초기화
+    });
+    get().fetchProducts();
   },
 
   bulkDeleteProducts: async (productIds: string[]) => {
@@ -441,5 +513,29 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         console.error('❌ Error importing XLSX library:', error);
         alert('Excel 내보내기 중 오류가 발생했습니다.');
       });
+  },
+
+  // Pagination actions
+  setCurrentPage: (page: number) => {
+    set({ currentPage: page });
+  },
+
+  setItemsPerPage: (itemsPerPage: number) => {
+    set({ itemsPerPage: itemsPerPage, currentPage: 1 }); // 페이지를 1로 리셋
+  },
+
+  nextPage: () => {
+    const { currentPage, totalItems, itemsPerPage } = get();
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (currentPage < totalPages) {
+      set({ currentPage: currentPage + 1 });
+    }
+  },
+
+  prevPage: () => {
+    const { currentPage } = get();
+    if (currentPage > 1) {
+      set({ currentPage: currentPage - 1 });
+    }
   },
 }));

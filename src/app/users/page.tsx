@@ -1,33 +1,31 @@
 'use client';
 
-import { AdminLayout } from '@/components/layout/admin-layout';
+import { SearchBar } from '@/components/molecules/SearchBar';
+import { DataTable } from '@/components/organisms/DataTable';
+import { UsersTemplate } from '@/components/templates/UsersTemplate';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useTranslation } from '@/store/i18n-store';
 import { useUsersStore } from '@/store/users-store';
 import { motion } from 'framer-motion';
-import { Calendar, Eye, Search, ShoppingBag, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Eye, RefreshCw, Users as UsersIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export default function UsersPage() {
+  const { t, locale } = useTranslation();
   const {
     users,
     loading,
@@ -47,250 +45,251 @@ export default function UsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleSearch = (value: string) => {
-    setLocalSearchTerm(value);
-    setSearchTerm(value);
-  };
+  const handleSearch = useCallback(
+    (value: string) => {
+      setLocalSearchTerm(value);
+      setSearchTerm(value);
+    },
+    [setSearchTerm]
+  );
 
-  const handleViewUser = async (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    if (user) {
-      setSelectedUser(user);
-      await fetchUserOrders(userId);
-    }
-  };
+  const handleViewUser = useCallback(
+    async (userId: string) => {
+      const user = users.find((u) => u.id === userId);
+      if (user) {
+        setSelectedUser(user);
+        await fetchUserOrders(userId);
+      }
+    },
+    [users, setSelectedUser, fetchUserOrders]
+  );
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">사용자 정보를 불러오는 중...</div>
-        </div>
-      </div>
-    );
-  }
+  const handleRefresh = useCallback(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-red-600">
-              오류가 발생했습니다: {error}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Column definitions for DataTable
+  const columns = useMemo(
+    () => [
+      {
+        id: 'email',
+        header: t('users.table.email'),
+        sortable: true,
+        cell: (user: any) => user.email,
+      },
+      {
+        id: 'created_at',
+        header: t('users.table.joinDate'),
+        sortable: true,
+        cell: (user: any) => new Date(user.created_at).toLocaleDateString(),
+      },
+      {
+        id: 'updated_at',
+        header: t('users.table.lastActive'),
+        sortable: true,
+        cell: (user: any) => new Date(user.updated_at).toLocaleDateString(),
+      },
+      {
+        id: 'actions',
+        header: t('users.table.actions'),
+        sortable: false,
+        cell: (user: any) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewUser(user.id)}
+            aria-label={t('users.actions.viewDetails')}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        ),
+      },
+    ],
+    [t, handleViewUser, locale]
+  );
+
+  // Controls section
+  const controlsSection = useMemo(
+    () => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between"
+      >
+        <SearchBar
+          searchValue={localSearchTerm}
+          onSearchChange={handleSearch}
+          placeholder={t('users.search.placeholder')}
+          className="w-full lg:w-96"
+        />
+
+        <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+          />
+          {t('common.refresh')}
+        </Button>
+      </motion.div>
+    ),
+    [localSearchTerm, loading, handleSearch, handleRefresh, t, locale]
+  );
+
+  // Table section
+  const tableSection = useMemo(
+    () => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <DataTable
+          data={users}
+          columns={columns}
+          loading={loading}
+          error={error}
+          emptyStateTitle={t('users.empty.title')}
+          emptyStateDescription={t('users.empty.description')}
+          emptyStateIcon={UsersIcon}
+          getItemId={(user) => String(user.id)}
+        />
+      </motion.div>
+    ),
+    [users, columns, loading, error, t, locale]
+  );
+
+  // User details modal
+  const modals = useMemo(
+    () => (
+      <>
+        {selectedUser && (
+          <Dialog
+            open={!!selectedUser}
+            onOpenChange={() => setSelectedUser(null)}
+          >
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{t('users.details.title')}</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                {/* User Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('users.details.userInfo')}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {t('users.details.email')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedUser.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {t('users.details.joinDate')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(
+                            selectedUser.created_at
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {t('users.details.lastActive')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(
+                            selectedUser.updated_at
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {t('users.details.status')}
+                        </p>
+                        <Badge variant="outline" className="text-green-600">
+                          {t('users.status.active')}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* User Orders */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('users.details.orderHistory')}</CardTitle>
+                    <CardDescription>
+                      {t('users.details.totalOrders', {
+                        count: userOrders.length,
+                      })}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {userOrders.length > 0 ? (
+                      <div className="space-y-3">
+                        {userOrders.slice(0, 5).map((order) => (
+                          <div
+                            key={order.id}
+                            className="flex justify-between items-center p-3 border rounded-lg"
+                          >
+                            <div>
+                              <p className="font-medium">#{order.id}</p>
+                              <p className="text-sm text-gray-600">
+                                {new Date(
+                                  order.created_at
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">
+                                {order.total_amount.toLocaleString()}원
+                              </p>
+                              <Badge variant="outline">
+                                {t(`orders.status.${order.status}`)}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                        {userOrders.length > 5 && (
+                          <p className="text-sm text-gray-500 text-center">
+                            {t('users.details.andMore', {
+                              count: userOrders.length - 5,
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">
+                          {t('users.details.noOrders')}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </>
+    ),
+    [selectedUser, userOrders, setSelectedUser, t, locale]
+  );
 
   return (
-    <AdminLayout>
-      <div className="p-6 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold">사용자 관리</h1>
-              <p className="text-gray-600 mt-1">
-                등록된 사용자들을 관리하고 주문 내역을 확인하세요
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Users className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold text-blue-600">
-                {users.length}
-              </span>
-              <span className="text-gray-500">명</span>
-            </div>
-          </div>
-
-          {/* 검색 */}
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="사용자 이름 또는 이메일로 검색..."
-                  value={localSearchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 사용자 목록 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>사용자 목록</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>이름</TableHead>
-                    <TableHead>이메일</TableHead>
-                    <TableHead>가입일</TableHead>
-                    <TableHead>상태</TableHead>
-                    <TableHead>작업</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.email.split('@')[0]}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-green-600">
-                          활성
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewUser(user.id)}
-                              className="cursor-pointer hover:bg-gray-50 transition-colors"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              상세보기
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>사용자 상세 정보</DialogTitle>
-                              <DialogDescription>
-                                {selectedUser?.email}의 정보와 주문 내역
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              {selectedUser && (
-                                <>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label className="text-sm font-medium">
-                                        이름
-                                      </Label>
-                                      <p>{selectedUser.email.split('@')[0]}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-sm font-medium">
-                                        이메일
-                                      </Label>
-                                      <p>{selectedUser.email}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-sm font-medium">
-                                        가입일
-                                      </Label>
-                                      <p>
-                                        {new Date(
-                                          selectedUser.created_at
-                                        ).toLocaleDateString()}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-sm font-medium">
-                                        총 주문 수
-                                      </Label>
-                                      <p>{userOrders.length}개</p>
-                                    </div>
-                                  </div>
-
-                                  {userOrders.length > 0 && (
-                                    <div>
-                                      <h4 className="font-medium mb-2 flex items-center">
-                                        <ShoppingBag className="h-4 w-4 mr-1" />
-                                        주문 내역
-                                      </h4>
-                                      <div className="max-h-60 overflow-y-auto">
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>주문번호</TableHead>
-                                              <TableHead>금액</TableHead>
-                                              <TableHead>상태</TableHead>
-                                              <TableHead>주문일</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {userOrders.map((order) => (
-                                              <TableRow key={order.id}>
-                                                <TableCell className="font-mono text-sm">
-                                                  #{order.id.slice(-8)}
-                                                </TableCell>
-                                                <TableCell>
-                                                  ₩
-                                                  {order.total_amount?.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Badge
-                                                    variant={
-                                                      order.status ===
-                                                      'delivered'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                    }
-                                                  >
-                                                    {order.status ===
-                                                      'pending' && '대기중'}
-                                                    {order.status ===
-                                                      'payment_confirmed' &&
-                                                      '처리중'}
-                                                    {order.status ===
-                                                      'shipped' && '배송중'}
-                                                    {order.status ===
-                                                      'delivered' && '배송완료'}
-                                                  </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                  {new Date(
-                                                    order.created_at
-                                                  ).toLocaleDateString()}
-                                                </TableCell>
-                                              </TableRow>
-                                            ))}
-                                          </TableBody>
-                                        </Table>
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {users.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  사용자가 없습니다.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    </AdminLayout>
+    <UsersTemplate
+      title={t('users.managementTitle')}
+      description={t('users.managementDescription')}
+      controlsSection={controlsSection}
+      tableSection={tableSection}
+      modals={modals}
+      loading={loading}
+    />
   );
 }

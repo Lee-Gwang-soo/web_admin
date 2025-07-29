@@ -1,3 +1,4 @@
+import React from 'react'; // Added for useMemo
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
@@ -204,6 +205,25 @@ export const initializeI18n = async () => {
 
 // 번역 훅 (컴포넌트에서 사용)
 export const useTranslation = () => {
-  const { t, locale, isLoading } = useI18nStore();
+  const locale = useI18nStore((state) => state.locale);
+  const isLoading = useI18nStore((state) => state.isLoading);
+  const translations = useI18nStore((state) => state.translations);
+
+  // t 함수를 useMemo로 메모이제이션하여 locale이나 translations가 변경될 때마다 새로운 함수 생성
+  const t = React.useMemo(() => {
+    return (key: string, params?: Record<string, string>) => {
+      const result = translateText(translations, key, params);
+
+      // 번역 누락 체크 (개발환경에서만)
+      if (result === key && process.env.NODE_ENV === 'development') {
+        console.warn(
+          `🔍 Translation missing for key: "${key}" in locale: ${locale}`
+        );
+      }
+
+      return result;
+    };
+  }, [locale, translations]);
+
   return { t, locale, isLoading };
 };

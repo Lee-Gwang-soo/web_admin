@@ -3,14 +3,19 @@
 import { Sidebar } from '@/components/ui/sidebar';
 import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
-  const { user, loading, initialize } = useAuthStore();
+export const AdminLayout = memo<AdminLayoutProps>(function AdminLayout({
+  children,
+}) {
+  // 개별 선택자로 변경하여 불필요한 리렌더링 방지
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+  const initialize = useAuthStore((state) => state.initialize);
   const router = useRouter();
 
   useEffect(() => {
@@ -43,4 +48,4 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </main>
     </div>
   );
-}
+});
