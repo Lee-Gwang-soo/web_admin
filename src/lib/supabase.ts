@@ -1,14 +1,39 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 환경 변수에서 값을 가져오고, 없으면 더미 값 사용
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://esnmmlqzmlnygtmdxdvq.supabase.co';
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbm1tbHF6bWxueWd0bWR4ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MDU4MDIsImV4cCI6MjA0OTQ4MTgwMn0.r-xKhgGz6FdHXDwX8hMxQBEf1UlqjGQgz_rQ2uVZzHE';
+// 환경변수 검증 함수
+const getRequiredEnvVar = (name: string, fallback?: string): string => {
+  const value = process.env[name];
 
-// 개발 환경에서 실제 환경 변수가 설정되지 않은 경우 경고
+  if (!value) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Missing required environment variable: ${name}`);
+    }
+    if (fallback) {
+      console.warn(`⚠️ Using fallback value for ${name} in development`);
+      return fallback;
+    }
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+};
+
+// 환경 변수에서 값을 가져오기 (프로덕션에서는 필수)
+const supabaseUrl = getRequiredEnvVar(
+  'NEXT_PUBLIC_SUPABASE_URL',
+  process.env.NODE_ENV === 'development'
+    ? 'https://esnmmlqzmlnygtmdxdvq.supabase.co'
+    : undefined
+);
+
+const supabaseAnonKey = getRequiredEnvVar(
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  process.env.NODE_ENV === 'development'
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbm1tbHF6bWxueWd0bWR4ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MDU4MDIsImV4cCI6MjA0OTQ4MTgwMn0.r-xKhgGz6FdHXDwX8hMxQBEf1UlqjGQgz_rQ2uVZzHE'
+    : undefined
+);
+
+// 개발 환경에서 환경 변수 디버깅
 if (process.env.NODE_ENV === 'development') {
   console.log('🔍 Environment Variables Debug:');
   console.log(
@@ -19,20 +44,13 @@ if (process.env.NODE_ENV === 'development') {
     'NEXT_PUBLIC_SUPABASE_ANON_KEY:',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Found' : '❌ Missing'
   );
-  console.log('Using URL:', supabaseUrl);
-  console.log(
-    'Using API Key (first 20 chars):',
-    supabaseAnonKey.substring(0, 20) + '...'
-  );
+}
 
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
-    console.warn(
-      '⚠️ Supabase 환경 변수가 설정되지 않았습니다. .env.local 파일을 확인해주세요.'
-    );
-  }
+// 프로덕션에서 환경변수 확인 로깅
+if (process.env.NODE_ENV === 'production') {
+  console.log('🚀 Production Environment Check:');
+  console.log('Supabase URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
+  console.log('Supabase Anon Key:', supabaseAnonKey ? '✅ Set' : '❌ Missing');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
