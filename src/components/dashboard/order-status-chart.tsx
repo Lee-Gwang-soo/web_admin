@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
 import { memo, useMemo } from 'react';
 import {
@@ -31,11 +32,32 @@ interface OrderStatusChartProps {
 
 export const OrderStatusChart = memo<OrderStatusChartProps>(
   function OrderStatusChart({ data, loading = false }) {
-    const formatTooltip = useMemo(() => {
-      return (value: number, name: string) => {
-        return [`${value}건`, name];
+    const { t } = useTranslation();
+
+    // 주문 상태를 다국어로 변환하는 함수
+    const getStatusDisplayName = useMemo(() => {
+      const statusMap: { [key: string]: string } = {
+        Pending: t('orders.pending'),
+        Payment_confirmed: t('orders.payment_confirmed'),
+        Preparing: t('orders.preparing'),
+        Shipped: t('orders.shipped'),
+        Delivered: t('orders.delivered'),
+        Cancelled: t('orders.cancelled'),
+        Returned: t('orders.returned'),
       };
-    }, []);
+
+      return (status: string) => {
+        // API에서 오는 형태에 맞춰 매핑
+        return statusMap[status] || status;
+      };
+    }, [t]);
+
+    const formatTooltip = useMemo(() => {
+      return (value: number, name: string, props: any) => {
+        const displayName = getStatusDisplayName(props.payload.status);
+        return [`${value}건`, displayName];
+      };
+    }, [getStatusDisplayName]);
 
     const chartConfig = useMemo(
       () => ({
@@ -85,14 +107,17 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
 
     const legendFormatter = useMemo(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const LegendComponent = (value: string, entry: any) => (
-        <span style={{ color: entry.color }}>
-          {value} ({entry.payload.count}건)
-        </span>
-      );
+      const LegendComponent = (value: string, entry: any) => {
+        const displayName = getStatusDisplayName(entry.payload.status);
+        return (
+          <span style={{ color: entry.color }}>
+            {displayName} ({entry.payload.count}건)
+          </span>
+        );
+      };
       LegendComponent.displayName = 'LegendComponent';
       return LegendComponent;
-    }, []);
+    }, [getStatusDisplayName]);
 
     return (
       <motion.div
@@ -102,7 +127,7 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
       >
         <Card>
           <CardHeader>
-            <CardTitle>주문 상태별 분포</CardTitle>
+            <CardTitle>{t('dashboard.charts.orderStatus')}</CardTitle>
             <CardDescription>주문 상태별 현황을 확인하세요</CardDescription>
           </CardHeader>
           <CardContent>

@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
-  Settings,
   ShoppingCart,
   Users,
 } from 'lucide-react';
@@ -39,16 +38,16 @@ const navigation = [
     href: '/users',
     icon: Users,
   },
-  {
-    nameKey: 'navigation.analytics',
-    href: '/analytics',
-    icon: BarChart3,
-  },
-  {
-    nameKey: 'navigation.settings',
-    href: '/settings',
-    icon: Settings,
-  },
+  // {
+  //   nameKey: 'navigation.analytics',
+  //   href: '/analytics',
+  //   icon: BarChart3,
+  // },
+  // {
+  //   nameKey: 'navigation.settings',
+  //   href: '/settings',
+  //   icon: Settings,
+  // },
 ];
 
 export function Sidebar() {
