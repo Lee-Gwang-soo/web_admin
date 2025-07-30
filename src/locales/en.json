@@ -121,7 +121,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Real-time business insights and data monitoring",
+    "description": "Real-time business insights and data monitoring",
     "lastUpdated": "Last updated",
     "realTimeMonitoring": "Real-time monitoring",
     "kpi": {
@@ -135,6 +135,8 @@
       "activeUsers": "Active Users",
       "conversionRate": "Conversion Rate",
       "previousDayComparison": "Increase from previous day",
+      "dayBeforeComparison": "Increase from day before yesterday",
+      "previousWeekComparison": "Increase from previous week",
       "newOrders": "New orders",
       "currentlyOnline": "Currently online",
       "visitorComparison": "Compared to visitors"

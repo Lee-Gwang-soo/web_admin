@@ -334,6 +334,11 @@ const OrderDetailsModal = memo<OrderDetailsModalProps>(
 const OrdersPage = memo(function OrdersPage() {
   const { t } = useTranslation();
 
+  // 페이지 타이틀 설정
+  useEffect(() => {
+    document.title = `${t('orders.title')} - Admin Dashboard`;
+  }, [t]);
+
   // 각 상태를 개별적으로 구독 (완전한 리렌더링 방지)
   const selectedOrders = useOrdersStore((state) => state.selectedOrders);
   const toggleOrderSelection = useOrdersStore(

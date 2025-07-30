@@ -8,34 +8,6 @@ const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzbm1tbHF6bWxueWd0bWR4ZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MDU4MDIsImV4cCI6MjA0OTQ4MTgwMn0.r-xKhgGz6FdHXDwX8hMxQBEf1UlqjGQgz_rQ2uVZzHE';
 
-// 개발 환경에서 실제 환경 변수가 설정되지 않은 경우 경고
-
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔍 Environment Variables Debug:');
-  console.log(
-    'NEXT_PUBLIC_SUPABASE_URL:',
-    process.env.NEXT_PUBLIC_SUPABASE_URL
-  );
-  console.log(
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY:',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Found' : '❌ Missing'
-  );
-  console.log('Using URL:', supabaseUrl);
-  console.log(
-    'Using API Key (first 20 chars):',
-    supabaseAnonKey.substring(0, 20) + '...'
-  );
-
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
-    console.warn(
-      '⚠️ Supabase 환경 변수가 설정되지 않았습니다. .env.local 파일을 확인해주세요.'
-    );
-  }
-}
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Types for our database tables

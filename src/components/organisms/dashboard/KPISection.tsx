@@ -103,6 +103,7 @@ export const KPISection = memo<KPISectionProps>(function KPISection({
           icon={card.icon}
           loading={loading}
           description={card.description}
+          dateFilter={dateFilter}
         />
       ))}
     </motion.div>

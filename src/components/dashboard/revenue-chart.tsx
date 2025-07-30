@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
 import { memo, useMemo } from 'react';
 import {
@@ -33,6 +34,7 @@ export const RevenueChart = memo<RevenueChartProps>(function RevenueChart({
   data,
   loading = false,
 }) {
+  const { t } = useTranslation();
   const formatCurrency = useMemo(() => {
     return (value: number) => {
       return new Intl.NumberFormat('ko-KR', {
@@ -94,7 +96,7 @@ export const RevenueChart = memo<RevenueChartProps>(function RevenueChart({
     >
       <Card>
         <CardHeader>
-          <CardTitle>시간별 매출 추이</CardTitle>
+          <CardTitle>{t('dashboard.charts.hourlyRevenue')}</CardTitle>
           <CardDescription>
             선택한 기간의 시간대별 매출 현황을 확인하세요
           </CardDescription>

@@ -1,9 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/auth-store';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,11 +8,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { useAuthStore } from '@/store/auth-store';
+import { motion } from 'framer-motion';
+import { BarChart3, DollarSign, TrendingUp, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function HomePage() {
   const router = useRouter();
   const { user, loading } = useAuthStore();
+
+  // 페이지 타이틀 설정
+  useEffect(() => {
+    document.title = 'E-commerce Admin Dashboard';
+  }, []);
 
   useEffect(() => {
     if (!loading) {

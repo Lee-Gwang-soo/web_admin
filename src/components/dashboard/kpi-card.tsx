@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { memo, useMemo } from 'react';
@@ -14,6 +15,7 @@ interface KPICardProps {
   description?: string;
   trend?: 'up' | 'down' | 'neutral';
   loading?: boolean;
+  dateFilter?: 'today' | 'yesterday' | 'week';
 }
 
 export const KPICard = memo<KPICardProps>(function KPICard({
@@ -24,7 +26,9 @@ export const KPICard = memo<KPICardProps>(function KPICard({
   description,
   trend = 'neutral',
   loading = false,
+  dateFilter = 'today',
 }) {
+  const { t } = useTranslation();
   const formatValue = useMemo(() => {
     return (val: string | number) => {
       if (typeof val === 'number') {
@@ -66,6 +70,19 @@ export const KPICard = memo<KPICardProps>(function KPICard({
     }
   }, [trend]);
 
+  const comparisonText = useMemo(() => {
+    switch (dateFilter) {
+      case 'today':
+        return t('dashboard.kpi.previousDayComparison');
+      case 'yesterday':
+        return t('dashboard.kpi.dayBeforeComparison');
+      case 'week':
+        return t('dashboard.kpi.previousWeekComparison');
+      default:
+        return t('dashboard.kpi.previousDayComparison');
+    }
+  }, [dateFilter, t]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -97,7 +114,9 @@ export const KPICard = memo<KPICardProps>(function KPICard({
                   <span className="mr-1">{trendIcon}</span>
                   {Math.abs(change).toFixed(1)}%
                 </Badge>
-                <span className="text-xs text-muted-foreground">전일 대비</span>
+                <span className="text-xs text-muted-foreground">
+                  {comparisonText}
+                </span>
               </div>
             )}
 
