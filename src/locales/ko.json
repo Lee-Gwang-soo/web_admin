@@ -53,6 +53,8 @@
     "days": "일"
   },
   "auth": {
+    "signUp": "회원가입",
+    "signIn": "로그인",
     "login": "로그인",
     "logout": "로그아웃",
     "signup": "회원가입",

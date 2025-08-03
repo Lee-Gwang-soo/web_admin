@@ -86,14 +86,6 @@ export default function HomePage() {
                       시작하기
                     </Button>
                   </div>
-                  <div className="mt-3 sm:mt-0 sm:ml-3">
-                    <Button
-                      variant="outline"
-                      className="w-full flex items-center justify-center px-8 py-3 text-base font-medium"
-                    >
-                      데모 보기
-                    </Button>
-                  </div>
                 </motion.div>
               </div>
             </main>
