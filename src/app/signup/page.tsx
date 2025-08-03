@@ -35,6 +35,11 @@ export default function SignUpPage() {
   const { signUp, signIn, signInWithGitHub, user, error, loading, clearError } =
     useAuthStore();
   const { t } = useTranslation();
+
+  // 페이지 타이틀 설정
+  useEffect(() => {
+    document.title = `${t('auth.signUp')} - Admin Dashboard`;
+  }, [t]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

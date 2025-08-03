@@ -22,6 +22,11 @@ export default function DashboardPage() {
     stopRealTimeUpdates,
   } = useDashboardStore();
 
+  // 페이지 타이틀 설정
+  useEffect(() => {
+    document.title = `${t('dashboard.title')} - Admin Dashboard`;
+  }, [t]);
+
   // 클라이언트 사이드 환경변수 디버깅 (빌드 시점 제외)
   useEffect(() => {
     // 클라이언트 사이드에서만 실행

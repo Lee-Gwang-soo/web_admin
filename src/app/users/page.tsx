@@ -26,6 +26,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export default function UsersPage() {
   const { t, locale } = useTranslation();
+
+  // 페이지 타이틀 설정
+  useEffect(() => {
+    document.title = `${t('users.title')} - Admin Dashboard`;
+  }, [t]);
+
   const {
     users,
     loading,
