@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
-import { Calendar, Download, RefreshCw } from 'lucide-react';
+import { Calendar, RefreshCw } from 'lucide-react';
 import { memo, useCallback } from 'react';
 
 interface DashboardControlsProps {
@@ -89,7 +89,7 @@ export const DashboardControls = memo<DashboardControlsProps>(
             />
             {t('common.refresh')}
           </Button>
-          <Button
+          {/* <Button
             variant="outline"
             onClick={handleExport}
             disabled={loading}
@@ -98,7 +98,7 @@ export const DashboardControls = memo<DashboardControlsProps>(
           >
             <Download className="h-4 w-4 mr-2" aria-hidden="true" />
             {t('dashboard.exportExcel')}
-          </Button>
+          </Button> */}
         </div>
       </motion.div>
     );

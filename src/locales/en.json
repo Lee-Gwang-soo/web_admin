@@ -53,6 +53,8 @@
     "days": "days"
   },
   "auth": {
+    "signUp": "Sign Up",
+    "signIn": "Sign In",
     "login": "Login",
     "logout": "Logout",
     "signup": "Sign Up",
