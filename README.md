@@ -38,9 +38,8 @@ Next.js 14 app router 및 supabase를 기반으로 한 E-commerce 플랫폼을 �
 
 - **내보내기**: CSV, Excel 형태로 데이터 내보내기
 
-### 6. 소셜 로그인 (구현 예정)
+### 6. 소셜 로그인
 
-- Google 로그인
 - GitHub 로그인
 
 ## 🛠 기술 스택
