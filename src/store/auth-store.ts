@@ -45,18 +45,18 @@ if (typeof window !== 'undefined') {
   (window as any).clearAuthDebugLogs = clearDebugLogs;
 }
 
-// GitHub OAuth 사용자를 users 테이블에 저장하는 함수
-const handleGitHubUserCreation = async (user: User) => {
+// 사용자를 commerce_user 테이블에 저장하는 함수
+const handleUserCreation = async (user: User) => {
   try {
-    debugLog('👤 GitHub 사용자 정보:', {
+    debugLog('👤 사용자 정보:', {
       id: user.id,
       email: user.email,
       provider: user.app_metadata?.provider,
     });
 
-    // 이미 users 테이블에 존재하는지 확인
+    // 이미 commerce_user 테이블에 존재하는지 확인
     const { data: existingUser, error: checkError } = await supabase
-      .from('users')
+      .from('commerce_user')
       .select('id')
       .eq('id', user.id)
       .single();
@@ -68,13 +68,13 @@ const handleGitHubUserCreation = async (user: User) => {
     }
 
     if (existingUser) {
-      debugLog('ℹ️ 사용자가 이미 users 테이블에 존재함');
+      debugLog('ℹ️ 사용자가 이미 commerce_user 테이블에 존재함');
       return;
     }
 
-    // users 테이블에 새 사용자 추가
+    // commerce_user 테이블에 새 사용자 추가
     const { data, error } = await supabase
-      .from('users')
+      .from('commerce_user')
       .insert({
         id: user.id,
         email: user.email || '',
@@ -85,12 +85,12 @@ const handleGitHubUserCreation = async (user: User) => {
       .single();
 
     if (error) {
-      debugLog('❌ GitHub 사용자 저장 실패:', error);
+      debugLog('❌ 사용자 저장 실패:', error);
     } else {
-      debugLog('✅ GitHub 사용자 users 테이블에 저장 성공:', data);
+      debugLog('✅ 사용자 commerce_user 테이블에 저장 성공:', data);
     }
   } catch (error) {
-    debugLog('❌ GitHub 사용자 처리 중 오류:', error);
+    debugLog('❌ 사용자 처리 중 오류:', error);
   }
 };
 
@@ -136,6 +136,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.user) {
         set({ user: data.user, error: null });
         debugLog('✅ 로그인 성공:', data.user.email);
+
+        // commerce_user 테이블에 사용자가 없으면 저장 (마이그레이션 대비)
+        await handleUserCreation(data.user);
+
         return { success: true };
       }
 
@@ -172,6 +176,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (data.user) {
         debugLog('✅ 회원가입 성공:', data.user.email);
+
+        // commerce_user 테이블에 사용자 정보 저장
+        await handleUserCreation(data.user);
+
         // 이메일 확인이 필요한 경우
         if (!data.user.email_confirmed_at) {
           debugLog('📧 이메일 확인 필요');
@@ -344,13 +352,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               set({ user: session.user, error: null });
               debugLog('✅ SIGNED_IN 처리 완료:', session.user.email);
 
-              // GitHub OAuth 사용자를 users 테이블에 저장
-              if (session.user.app_metadata?.provider === 'github') {
-                debugLog(
-                  '🐙 GitHub OAuth 사용자 감지, users 테이블에 저장 시도'
-                );
-                handleGitHubUserCreation(session.user);
-              }
+              // 사용자를 commerce_user 테이블에 저장
+              debugLog('💾 commerce_user 테이블에 사용자 저장 시도');
+              handleUserCreation(session.user);
             }
             break;
           case 'SIGNED_OUT':
