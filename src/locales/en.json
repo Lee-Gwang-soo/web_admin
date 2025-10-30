@@ -145,8 +145,15 @@
     },
     "charts": {
       "hourlyRevenue": "Hourly Revenue Trend",
+      "hourlyRevenueDescription": "Check the hourly revenue status for the selected period",
       "orderStatus": "Order Status Distribution",
-      "categoryRevenue": "Revenue by Category"
+      "orderStatusDescription": "Check the status of orders by category",
+      "categoryRevenue": "Revenue by Category",
+      "categoryRevenueDescription": "Check the revenue distribution by category",
+      "revenue": "Revenue",
+      "count": "Count",
+      "hour": "Hour",
+      "category": "Category"
     },
     "dateFilter": {
       "label": "Date Filter",
