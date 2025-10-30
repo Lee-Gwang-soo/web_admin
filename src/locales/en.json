@@ -411,7 +411,10 @@
     "delivered": "Delivered",
     "noUsers": "No users found.",
     "table": {
+      "userId": "ID",
+      "name": "Name",
       "email": "Email",
+      "phone": "Phone",
       "joinDate": "Join Date",
       "lastActive": "Last Active",
       "actions": "Actions"
@@ -419,7 +422,11 @@
     "details": {
       "title": "User Details",
       "userInfo": "User Information",
+      "userId": "ID",
+      "name": "Name",
       "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
       "joinDate": "Join Date",
       "lastActive": "Last Active",
       "status": "Status",

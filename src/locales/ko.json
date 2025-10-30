@@ -421,7 +421,10 @@
     "delivered": "배송완료",
     "noUsers": "사용자가 없습니다.",
     "table": {
+      "userId": "아이디",
+      "name": "이름",
       "email": "이메일",
+      "phone": "휴대폰",
       "joinDate": "가입일",
       "lastActive": "마지막 활동",
       "actions": "작업"
@@ -429,7 +432,11 @@
     "details": {
       "title": "사용자 상세 정보",
       "userInfo": "사용자 정보",
+      "userId": "아이디",
+      "name": "이름",
       "email": "이메일",
+      "phone": "휴대폰",
+      "address": "주소",
       "joinDate": "가입일",
       "lastActive": "마지막 활동",
       "status": "상태",
