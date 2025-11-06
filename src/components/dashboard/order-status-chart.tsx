@@ -55,9 +55,9 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
     const formatTooltip = useMemo(() => {
       return (value: number, name: string, props: any) => {
         const displayName = getStatusDisplayName(props.payload.status);
-        return [`${value}건`, displayName];
+        return [`${value}${t('dashboard.charts.count')}`, displayName];
       };
-    }, [getStatusDisplayName]);
+    }, [getStatusDisplayName, t]);
 
     const chartConfig = useMemo(
       () => ({
@@ -111,13 +111,14 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
         const displayName = getStatusDisplayName(entry.payload.status);
         return (
           <span style={{ color: entry.color }}>
-            {displayName} ({entry.payload.count}건)
+            {displayName} ({entry.payload.count}
+            {t('dashboard.charts.count')})
           </span>
         );
       };
       LegendComponent.displayName = 'LegendComponent';
       return LegendComponent;
-    }, [getStatusDisplayName]);
+    }, [getStatusDisplayName, t]);
 
     return (
       <motion.div
@@ -128,7 +129,9 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
         <Card>
           <CardHeader>
             <CardTitle>{t('dashboard.charts.orderStatus')}</CardTitle>
-            <CardDescription>주문 상태별 현황을 확인하세요</CardDescription>
+            <CardDescription>
+              {t('dashboard.charts.orderStatusDescription')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (

@@ -13,7 +13,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Types for our database tables
 export interface User {
   id: string;
+  user_id?: string; // commerce_user 테이블의 user_id 필드
   email: string;
+  name?: string; // 사용자 이름
+  phone?: string; // 전화번호
+  address?: string; // 주소
   created_at: string;
   updated_at: string;
 }
@@ -45,7 +49,8 @@ export interface Product {
   category: string;
   price: number;
   stock: number;
-  image_url?: string;
+  images: string[]; // 이미지 배열 (데이터베이스 필드)
+  image_url?: string; // 호환성을 위한 단일 이미지 URL (deprecated)
   created_at: string;
   updated_at: string;
 }
@@ -159,7 +164,7 @@ export const supabaseApi = {
 
       // Get active users (users who made orders in the time period)
       const { data: activeUsers, error: usersError } = await supabase
-        .from('users')
+        .from('commerce_user')
         .select('id')
         .gte('created_at', startDate.toISOString());
 
@@ -484,7 +489,7 @@ export const supabaseApi = {
           category: product.category,
           price: product.price,
           stock: product.stock,
-          image_url: product.image_url,
+          images: product.images, // images 배열 사용
           updated_at: new Date().toISOString(),
         })
         .eq('id', product.id)
@@ -521,7 +526,7 @@ export const supabaseApi = {
           category: productData.category,
           price: productData.price,
           stock: productData.stock,
-          image_url: productData.image_url,
+          images: productData.images, // images 배열 사용
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -630,11 +635,11 @@ export const supabaseApi = {
     }
   },
 
-  // Users related queries
+  // Users related queries (using commerce_user table)
   async getUsers(search?: string) {
     try {
       let query = supabase
-        .from('users')
+        .from('commerce_user')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -690,7 +695,7 @@ export const supabaseApi = {
         .select(
           `
           *,
-          users!orders_user_id_fkey(email),
+          commerce_user!orders_user_id_fkey(email),
           order_items(
             *,
             products(name, category)
@@ -717,7 +722,9 @@ export const supabaseApi = {
       const transformedData =
         data?.map((order) => ({
           ...order,
-          user: order.users ? { email: order.users.email } : undefined,
+          user: order.commerce_user
+            ? { email: order.commerce_user.email }
+            : undefined,
           order_items:
             order.order_items?.map((item: any) => ({
               ...item,

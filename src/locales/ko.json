@@ -145,8 +145,15 @@
     },
     "charts": {
       "hourlyRevenue": "시간별 매출 추이",
+      "hourlyRevenueDescription": "선택한 기간의 시간대별 매출 현황을 확인하세요",
       "orderStatus": "주문 상태별 분포",
-      "categoryRevenue": "카테고리별 판매"
+      "orderStatusDescription": "주문 상태별 현황을 확인하세요",
+      "categoryRevenue": "카테고리별 매출",
+      "categoryRevenueDescription": "카테고리별 매출 분포를 확인하세요",
+      "revenue": "매출",
+      "count": "건",
+      "hour": "시간",
+      "category": "카테고리"
     },
     "dateFilter": {
       "label": "날짜 필터",
@@ -421,7 +428,10 @@
     "delivered": "배송완료",
     "noUsers": "사용자가 없습니다.",
     "table": {
+      "userId": "아이디",
+      "name": "이름",
       "email": "이메일",
+      "phone": "휴대폰",
       "joinDate": "가입일",
       "lastActive": "마지막 활동",
       "actions": "작업"
@@ -429,7 +439,11 @@
     "details": {
       "title": "사용자 상세 정보",
       "userInfo": "사용자 정보",
+      "userId": "아이디",
+      "name": "이름",
       "email": "이메일",
+      "phone": "휴대폰",
+      "address": "주소",
       "joinDate": "가입일",
       "lastActive": "마지막 활동",
       "status": "상태",

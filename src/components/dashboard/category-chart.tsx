@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
 import { memo, useMemo } from 'react';
 import {
@@ -33,6 +34,7 @@ export const CategoryChart = memo<CategoryChartProps>(function CategoryChart({
   data,
   loading = false,
 }) {
+  const { t } = useTranslation();
   const formatCurrency = useMemo(() => {
     return (value: number) => {
       return new Intl.NumberFormat('ko-KR', {
@@ -46,11 +48,11 @@ export const CategoryChart = memo<CategoryChartProps>(function CategoryChart({
   const formatTooltip = useMemo(() => {
     return (value: number, name: string) => {
       if (name === 'revenue') {
-        return [formatCurrency(value), '매출'];
+        return [formatCurrency(value), t('dashboard.charts.revenue')];
       }
       return [value, name];
     };
-  }, [formatCurrency]);
+  }, [formatCurrency, t]);
 
   const chartConfig = useMemo(
     () => ({
@@ -91,8 +93,10 @@ export const CategoryChart = memo<CategoryChartProps>(function CategoryChart({
     >
       <Card>
         <CardHeader>
-          <CardTitle>카테고리별 매출</CardTitle>
-          <CardDescription>카테고리별 매출 분포를 확인하세요</CardDescription>
+          <CardTitle>{t('dashboard.charts.categoryRevenue')}</CardTitle>
+          <CardDescription>
+            {t('dashboard.charts.categoryRevenueDescription')}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -123,7 +127,9 @@ export const CategoryChart = memo<CategoryChartProps>(function CategoryChart({
                   />
                   <Tooltip
                     formatter={formatTooltip}
-                    labelFormatter={(label) => `카테고리: ${label}`}
+                    labelFormatter={(label) =>
+                      `${t('dashboard.charts.category')}: ${label}`
+                    }
                     contentStyle={chartConfig.tooltipStyle}
                   />
                   <Bar {...chartConfig.barStyle} />

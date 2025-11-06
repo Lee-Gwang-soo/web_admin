@@ -103,7 +103,7 @@ const ProductImageCell = memo<ProductImageCellProps>(function ProductImageCell({
   return (
     <div className="flex items-center justify-center">
       <OptimizedImage
-        src={product.image_url}
+        src={product.images?.[0] || product.image_url}
         alt={product.name}
         width={40}
         height={40}
@@ -478,11 +478,18 @@ const ProductsPage = memo(function ProductsPage() {
     async (data: any) => {
       setFormLoading(true);
       try {
+        // image_url을 images 배열로 변환
+        const productData = {
+          ...data,
+          images: data.image_url ? [data.image_url] : [],
+        };
+        delete productData.image_url; // image_url 필드 제거
+
         if (editingProduct) {
-          const updatedProduct = { ...editingProduct, ...data };
+          const updatedProduct = { ...editingProduct, ...productData };
           await updateProduct(updatedProduct);
         } else {
-          await addProduct(data);
+          await addProduct(productData);
         }
       } finally {
         setFormLoading(false);

@@ -48,11 +48,11 @@ export const RevenueChart = memo<RevenueChartProps>(function RevenueChart({
   const formatTooltip = useMemo(() => {
     return (value: number, name: string) => {
       if (name === 'revenue') {
-        return [formatCurrency(value), '매출'];
+        return [formatCurrency(value), t('dashboard.charts.revenue')];
       }
       return [value, name];
     };
-  }, [formatCurrency]);
+  }, [formatCurrency, t]);
 
   const chartConfig = useMemo(
     () => ({
@@ -98,7 +98,7 @@ export const RevenueChart = memo<RevenueChartProps>(function RevenueChart({
         <CardHeader>
           <CardTitle>{t('dashboard.charts.hourlyRevenue')}</CardTitle>
           <CardDescription>
-            선택한 기간의 시간대별 매출 현황을 확인하세요
+            {t('dashboard.charts.hourlyRevenueDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -130,7 +130,9 @@ export const RevenueChart = memo<RevenueChartProps>(function RevenueChart({
                   />
                   <Tooltip
                     formatter={formatTooltip}
-                    labelFormatter={(label) => `시간: ${label}`}
+                    labelFormatter={(label) =>
+                      `${t('dashboard.charts.hour')}: ${label}`
+                    }
                     contentStyle={chartConfig.tooltipStyle}
                   />
                   <Line {...chartConfig.lineStyle} />

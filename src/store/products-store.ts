@@ -287,8 +287,10 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       await supabaseApi.deleteProduct(productId);
 
       // Delete associated image if exists
-      if (productToDelete?.image_url) {
-        await supabaseApi.deleteProductImage(productToDelete.image_url);
+      const imageUrl =
+        productToDelete?.images?.[0] || productToDelete?.image_url;
+      if (imageUrl) {
+        await supabaseApi.deleteProductImage(imageUrl);
       }
 
       // Remove the product from local state
@@ -367,8 +369,9 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       await Promise.all(
         productsToDelete.map(async (product) => {
           await supabaseApi.deleteProduct(product.id);
-          if (product.image_url) {
-            await supabaseApi.deleteProductImage(product.image_url);
+          const imageUrl = product.images?.[0] || product.image_url;
+          if (imageUrl) {
+            await supabaseApi.deleteProductImage(imageUrl);
           }
         })
       );
@@ -450,7 +453,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         category: product.category,
         price: product.price,
         stock: product.stock,
-        image_url: product.image_url, // Keep the same image
+        images: product.images || [], // Keep the same images
       };
 
       await get().addProduct(clonedData);
@@ -480,7 +483,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
             product.price,
             product.stock || 0,
             new Date(product.created_at).toLocaleString('ko-KR'),
-            product.image_url || '',
+            product.images?.[0] || product.image_url || '',
           ]),
         ];
 

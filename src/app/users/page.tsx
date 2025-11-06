@@ -78,22 +78,34 @@ export default function UsersPage() {
   const columns = useMemo(
     () => [
       {
+        id: 'user_id',
+        header: t('users.table.userId'),
+        sortable: true,
+        cell: (user: any) => user.user_id || '-',
+      },
+      {
+        id: 'name',
+        header: t('users.table.name'),
+        sortable: true,
+        cell: (user: any) => user.name || '-',
+      },
+      {
         id: 'email',
         header: t('users.table.email'),
         sortable: true,
         cell: (user: any) => user.email,
       },
       {
+        id: 'phone',
+        header: t('users.table.phone'),
+        sortable: true,
+        cell: (user: any) => user.phone || '-',
+      },
+      {
         id: 'created_at',
         header: t('users.table.joinDate'),
         sortable: true,
         cell: (user: any) => new Date(user.created_at).toLocaleDateString(),
-      },
-      {
-        id: 'updated_at',
-        header: t('users.table.lastActive'),
-        sortable: true,
-        cell: (user: any) => new Date(user.updated_at).toLocaleDateString(),
       },
       {
         id: 'actions',
@@ -188,10 +200,42 @@ export default function UsersPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm font-medium">
+                          {t('users.details.userId')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedUser.user_id || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {t('users.details.name')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedUser.name || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
                           {t('users.details.email')}
                         </p>
                         <p className="text-sm text-gray-600">
                           {selectedUser.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {t('users.details.phone')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedUser.phone || '-'}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-sm font-medium">
+                          {t('users.details.address')}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedUser.address || '-'}
                         </p>
                       </div>
                       <div>
@@ -214,7 +258,7 @@ export default function UsersPage() {
                           ).toLocaleDateString()}
                         </p>
                       </div>
-                      <div>
+                      <div className="col-span-2">
                         <p className="text-sm font-medium">
                           {t('users.details.status')}
                         </p>

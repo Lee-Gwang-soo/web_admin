@@ -83,7 +83,7 @@ export const ProductFormModal = memo<ProductFormModalProps>(
           price: product.price,
           stock: product.stock,
           category: product.category,
-          image_url: product.image_url || '',
+          image_url: product.images?.[0] || product.image_url || '',
         });
       } else if (open && !product) {
         form.reset({
