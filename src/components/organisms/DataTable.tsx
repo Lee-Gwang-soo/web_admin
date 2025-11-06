@@ -407,7 +407,7 @@ const MobileCardsContainer = memo(function MobileCardsContainer<T>({
   getItemId,
 }: MobileCardsContainerProps<T>) {
   return (
-    <div className="block md:hidden space-y-3 p-4">
+    <div className="space-y-3 p-4">
       {data.map((item) => {
         const itemId = getItemId(item);
         const isSelected = selectedItemsSet.has(itemId);
@@ -537,10 +537,10 @@ export const DataTable = memo(function DataTable<T>({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Table */}
-      <div className="border rounded-lg">
+      {/* Table - max height with scroll */}
+      <div className="border rounded-lg max-h-[600px] overflow-hidden">
         {/* Desktop Table */}
-        <div className="hidden md:block">
+        <div className="hidden md:block max-h-[600px] overflow-auto">
           <Table>
             <TableHeaderComponent
               columns={columns}
@@ -554,7 +554,7 @@ export const DataTable = memo(function DataTable<T>({
             <TableBodyComponent
               data={paginatedData}
               columns={columns}
-              selectedItemsSet={selectedItemsSet} // Set 전달로 변경
+              selectedItemsSet={selectedItemsSet}
               onItemSelect={hasSelection ? stableOnItemSelect : undefined}
               getItemId={stableGetItemId}
             />
@@ -562,13 +562,15 @@ export const DataTable = memo(function DataTable<T>({
         </div>
 
         {/* Mobile Cards */}
-        <MobileCardsContainer
-          data={paginatedData}
-          columns={columns}
-          selectedItemsSet={selectedItemsSet} // Set 전달로 변경
-          onItemSelect={hasSelection ? stableOnItemSelect : undefined}
-          getItemId={stableGetItemId}
-        />
+        <div className="md:hidden max-h-[600px] overflow-auto">
+          <MobileCardsContainer
+            data={paginatedData}
+            columns={columns}
+            selectedItemsSet={selectedItemsSet}
+            onItemSelect={hasSelection ? stableOnItemSelect : undefined}
+            getItemId={stableGetItemId}
+          />
+        </div>
       </div>
 
       {/* Pagination */}

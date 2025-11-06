@@ -36,14 +36,14 @@ export const OrdersTemplate = memo<OrdersTemplateProps>(
         loading={loading}
         noPadding
       >
-        <div className="space-y-6 p-6">
+        <div className="p-6 space-y-6">
           {/* Summary Section */}
           <section aria-label="Orders Summary">{summarySection}</section>
 
           {/* Controls Section */}
           <section aria-label="Orders Controls">{controlsSection}</section>
 
-          {/* Table Section */}
+          {/* Table Section - Fixed Height with Scroll */}
           <section aria-label="Orders Table">{tableSection}</section>
         </div>
 

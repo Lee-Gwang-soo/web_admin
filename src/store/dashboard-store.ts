@@ -4,8 +4,12 @@ import { create } from 'zustand';
 export interface KPIData {
   todayRevenue: number;
   todayOrders: number;
-  activeUsers: number;
-  conversionRate: number;
+  refunds: number;
+  returns: number;
+  revenueChange: number;
+  ordersChange: number;
+  refundsChange: number;
+  returnsChange: number;
 }
 
 export interface ChartData {
@@ -38,8 +42,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
     kpiData: {
       todayRevenue: 0,
       todayOrders: 0,
-      activeUsers: 0,
-      conversionRate: 0,
+      refunds: 0,
+      returns: 0,
+      revenueChange: 0,
+      ordersChange: 0,
+      refundsChange: 0,
+      returnsChange: 0,
     },
     chartData: {
       hourlyRevenue: [],
@@ -135,8 +143,12 @@ const generateMockData = (
     kpiData: {
       todayRevenue: baseRevenue * multiplier,
       todayOrders: (156 + Math.floor(Math.random() * 50)) * multiplier,
-      activeUsers: 1420 + Math.floor(Math.random() * 200),
-      conversionRate: 3.2 + Math.random() * 1.5,
+      refunds: Math.floor(Math.random() * 10) * multiplier,
+      returns: Math.floor(Math.random() * 8) * multiplier,
+      revenueChange: (Math.random() - 0.5) * 20,
+      ordersChange: (Math.random() - 0.5) * 20,
+      refundsChange: (Math.random() - 0.5) * 30,
+      returnsChange: (Math.random() - 0.5) * 30,
     },
     chartData: {
       hourlyRevenue: Array.from({ length: 24 }, (_, i) => ({
