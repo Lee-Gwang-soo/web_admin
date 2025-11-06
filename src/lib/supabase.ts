@@ -80,8 +80,13 @@ export interface OrderWithItems extends Order {
 export interface DashboardKPI {
   todayRevenue: number;
   todayOrders: number;
-  activeUsers: number;
-  conversionRate: number;
+  refunds: number;
+  returns: number;
+  // Comparison data for KPI metrics
+  revenueChange: number;
+  ordersChange: number;
+  refundsChange: number;
+  returnsChange: number;
 }
 
 export interface HourlyRevenue {
@@ -108,22 +113,40 @@ export const supabaseApi = {
     const now = new Date();
     const startDate = new Date();
     const endDate = new Date();
+    const compareStartDate = new Date();
+    const compareEndDate = new Date();
 
+    // Set current period dates
     switch (dateFilter) {
       case 'today':
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(23, 59, 59, 999);
+        // Compare with yesterday
+        compareStartDate.setDate(now.getDate() - 1);
+        compareStartDate.setHours(0, 0, 0, 0);
+        compareEndDate.setDate(now.getDate() - 1);
+        compareEndDate.setHours(23, 59, 59, 999);
         break;
       case 'yesterday':
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
         endDate.setDate(now.getDate() - 1);
         endDate.setHours(23, 59, 59, 999);
+        // Compare with day before yesterday
+        compareStartDate.setDate(now.getDate() - 2);
+        compareStartDate.setHours(0, 0, 0, 0);
+        compareEndDate.setDate(now.getDate() - 2);
+        compareEndDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         startDate.setDate(now.getDate() - 7);
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(23, 59, 59, 999);
+        // Compare with previous week
+        compareStartDate.setDate(now.getDate() - 14);
+        compareStartDate.setHours(0, 0, 0, 0);
+        compareEndDate.setDate(now.getDate() - 7);
+        compareEndDate.setHours(23, 59, 59, 999);
         break;
     }
 
@@ -135,12 +158,20 @@ export const supabaseApi = {
         endDate.toISOString()
       );
 
-      // Get revenue and order count (excluding cancelled and returned orders)
+      // Fetch current period data
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('total_amount, created_at, status')
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString());
+
+      // Fetch comparison period data
+      const { data: compareOrdersData, error: compareOrdersError } =
+        await supabase
+          .from('orders')
+          .select('total_amount, created_at, status')
+          .gte('created_at', compareStartDate.toISOString())
+          .lt('created_at', compareEndDate.toISOString());
 
       console.log('📊 Orders query result:', { orders, ordersError });
 
@@ -149,7 +180,7 @@ export const supabaseApi = {
         throw ordersError;
       }
 
-      // Calculate revenue excluding cancelled and returned orders
+      // Calculate current period metrics
       const validOrders =
         orders?.filter(
           (order) => order.status !== 'cancelled' && order.status !== 'returned'
@@ -162,29 +193,55 @@ export const supabaseApi = {
         ) || 0;
       const todayOrders = validOrders.length;
 
-      // Get active users (users who made orders in the time period)
-      const { data: activeUsers, error: usersError } = await supabase
-        .from('commerce_user')
-        .select('id')
-        .gte('created_at', startDate.toISOString());
+      // Calculate refunds (cancelled orders)
+      const refunds =
+        orders?.filter((order) => order.status === 'cancelled').length || 0;
 
-      console.log('👥 Users query result:', { activeUsers, usersError });
+      // Calculate returns (returned orders)
+      const returns =
+        orders?.filter((order) => order.status === 'returned').length || 0;
 
-      if (usersError) {
-        console.error('❌ Users query error:', usersError);
-        // Don't throw error for users, continue with 0
-      }
+      // Calculate comparison period metrics
+      const compareValidOrders =
+        compareOrdersData?.filter(
+          (order) => order.status !== 'cancelled' && order.status !== 'returned'
+        ) || [];
 
-      // Calculate conversion rate (simplified)
-      const conversionRate = activeUsers?.length
-        ? (todayOrders / activeUsers.length) * 100
-        : 0;
+      const compareRevenue =
+        compareValidOrders.reduce(
+          (sum, order) => sum + Number(order.total_amount),
+          0
+        ) || 0;
+      const compareOrdersCount = compareValidOrders.length;
+
+      const compareRefunds =
+        compareOrdersData?.filter((order) => order.status === 'cancelled')
+          .length || 0;
+
+      const compareReturns =
+        compareOrdersData?.filter((order) => order.status === 'returned')
+          .length || 0;
+
+      // Calculate percentage changes
+      const calculateChange = (current: number, previous: number): number => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return Math.round(((current - previous) / previous) * 1000) / 10;
+      };
+
+      const revenueChange = calculateChange(todayRevenue, compareRevenue);
+      const ordersChange = calculateChange(todayOrders, compareOrdersCount);
+      const refundsChange = calculateChange(refunds, compareRefunds);
+      const returnsChange = calculateChange(returns, compareReturns);
 
       const result = {
         todayRevenue,
         todayOrders,
-        activeUsers: activeUsers?.length || 5, // Fallback to known user count
-        conversionRate: Math.round(conversionRate * 100) / 100,
+        refunds,
+        returns,
+        revenueChange,
+        ordersChange,
+        refundsChange,
+        returnsChange,
       };
 
       console.log('✅ KPI result:', result);
@@ -195,8 +252,12 @@ export const supabaseApi = {
       return {
         todayRevenue: 0,
         todayOrders: 0,
-        activeUsers: 0,
-        conversionRate: 0,
+        refunds: 0,
+        returns: 0,
+        revenueChange: 0,
+        ordersChange: 0,
+        refundsChange: 0,
+        returnsChange: 0,
       };
     }
   },

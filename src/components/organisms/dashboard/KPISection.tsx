@@ -3,14 +3,18 @@
 import { KPICard } from '@/components/dashboard/kpi-card';
 import { useTranslation } from '@/store/i18n-store';
 import { motion } from 'framer-motion';
-import { DollarSign, ShoppingCart, TrendingUp, Users } from 'lucide-react';
+import { DollarSign, ShoppingCart, XCircle, PackageX } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
 interface KPIData {
   todayRevenue: number;
   todayOrders: number;
-  activeUsers: number;
-  conversionRate: number;
+  refunds: number;
+  returns: number;
+  revenueChange: number;
+  ordersChange: number;
+  refundsChange: number;
+  returnsChange: number;
 }
 
 interface KPISectionProps {
@@ -27,11 +31,22 @@ export const KPISection = memo<KPISectionProps>(function KPISection({
   const { t, locale } = useTranslation();
 
   const getKPITitle = useMemo(() => {
-    return (type: 'revenue' | 'orders') => {
-      const baseKey =
-        type === 'revenue'
-          ? 'dashboard.kpi.todayRevenue'
-          : 'dashboard.kpi.todayOrders';
+    return (type: 'revenue' | 'orders' | 'refunds' | 'returns') => {
+      let baseKey = '';
+      switch (type) {
+        case 'revenue':
+          baseKey = 'dashboard.kpi.todayRevenue';
+          break;
+        case 'orders':
+          baseKey = 'dashboard.kpi.todayOrders';
+          break;
+        case 'refunds':
+          baseKey = 'dashboard.kpi.todayRefunds';
+          break;
+        case 'returns':
+          baseKey = 'dashboard.kpi.todayReturns';
+          break;
+      }
 
       switch (dateFilter) {
         case 'today':
@@ -46,43 +61,47 @@ export const KPISection = memo<KPISectionProps>(function KPISection({
     };
   }, [dateFilter, t, locale]);
 
-  const kpiCards = useMemo(
-    () => [
+  const kpiCards = useMemo(() => {
+    const revenueTrend: 'up' | 'down' = data.revenueChange >= 0 ? 'up' : 'down';
+    const ordersTrend: 'up' | 'down' = data.ordersChange >= 0 ? 'up' : 'down';
+    const refundsTrend: 'up' | 'down' = data.refundsChange <= 0 ? 'up' : 'down';
+    const returnsTrend: 'up' | 'down' = data.returnsChange <= 0 ? 'up' : 'down';
+
+    return [
       {
         title: getKPITitle('revenue'),
         value: data.todayRevenue,
-        change: 12.5,
-        trend: 'up' as const,
+        change: data.revenueChange,
+        trend: revenueTrend,
         icon: DollarSign,
-        description: t('dashboard.kpi.previousDayComparison'),
+        description: t('dashboard.kpi.newOrders'),
       },
       {
         title: getKPITitle('orders'),
         value: data.todayOrders,
-        change: 8.2,
-        trend: 'up' as const,
+        change: data.ordersChange,
+        trend: ordersTrend,
         icon: ShoppingCart,
         description: t('dashboard.kpi.newOrders'),
       },
       {
-        title: t('dashboard.kpi.activeUsers'),
-        value: data.activeUsers,
-        change: -2.1,
-        trend: 'down' as const,
-        icon: Users,
-        description: t('dashboard.kpi.currentlyOnline'),
+        title: getKPITitle('refunds'),
+        value: data.refunds,
+        change: data.refundsChange,
+        trend: refundsTrend,
+        icon: XCircle,
+        description: t('dashboard.kpi.cancelledOrders'),
       },
       {
-        title: t('dashboard.kpi.conversionRate'),
-        value: data.conversionRate,
-        change: 5.7,
-        trend: 'up' as const,
-        icon: TrendingUp,
-        description: t('dashboard.kpi.visitorComparison'),
+        title: getKPITitle('returns'),
+        value: data.returns,
+        change: data.returnsChange,
+        trend: returnsTrend,
+        icon: PackageX,
+        description: t('dashboard.kpi.returnedOrders'),
       },
-    ],
-    [data, getKPITitle, t, locale]
-  );
+    ];
+  }, [data, getKPITitle, t, locale]);
 
   return (
     <motion.div
