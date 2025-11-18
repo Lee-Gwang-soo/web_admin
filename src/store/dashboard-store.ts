@@ -20,16 +20,18 @@ export interface ChartData {
     color: string;
   }>;
   categoryRevenue: Array<{ category: string; revenue: number }>;
+  categorySales: Array<{ category: string; count: number }>;
 }
 
 export interface DashboardState {
   kpiData: KPIData;
   chartData: ChartData;
   loading: boolean;
+  isRefreshing: boolean; // 자동 새로고침 상태 (skeleton UI 표시 안함)
   error: string | null;
   lastUpdated: Date | null;
   dateFilter: 'today' | 'yesterday' | 'week';
-  fetchDashboardData: () => Promise<void>;
+  fetchDashboardData: (isAutoRefresh?: boolean) => Promise<void>;
   setDateFilter: (filter: 'today' | 'yesterday' | 'week') => void;
   startRealTimeUpdates: () => void;
   stopRealTimeUpdates: () => void;
@@ -53,15 +55,22 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
       hourlyRevenue: [],
       orderStatusDistribution: [],
       categoryRevenue: [],
+      categorySales: [],
     },
     loading: false,
+    isRefreshing: false,
     error: null,
     lastUpdated: null,
     dateFilter: 'today',
 
-    fetchDashboardData: async () => {
+    fetchDashboardData: async (isAutoRefresh = false) => {
       try {
-        set({ loading: true, error: null });
+        // 자동 새로고침일 경우 isRefreshing만 true로, 수동 새로고침일 경우 loading을 true로
+        if (isAutoRefresh) {
+          set({ isRefreshing: true, error: null });
+        } else {
+          set({ loading: true, error: null });
+        }
 
         const dateFilter = get().dateFilter;
 
@@ -71,11 +80,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
           hourlyRevenue,
           orderStatusDistribution,
           categoryRevenue,
+          categorySales,
         ] = await Promise.all([
           supabaseApi.getDashboardKPI(dateFilter),
           supabaseApi.getHourlyRevenue(dateFilter),
           supabaseApi.getOrderStatusDistribution(dateFilter),
           supabaseApi.getCategoryRevenue(dateFilter),
+          supabaseApi.getCategorySales(dateFilter),
         ]);
 
         set({
@@ -84,9 +95,11 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
             hourlyRevenue,
             orderStatusDistribution,
             categoryRevenue,
+            categorySales,
           },
           lastUpdated: new Date(),
           loading: false,
+          isRefreshing: false,
           error: null,
         });
       } catch (error) {
@@ -100,6 +113,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
           chartData: mockData.chartData,
           lastUpdated: new Date(),
           loading: false,
+          isRefreshing: false,
           error:
             error instanceof Error ? error.message : 'Failed to fetch data',
         });
@@ -117,9 +131,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => {
       // Stop existing interval
       stopRealTimeUpdates();
 
-      // Start new interval for 10-second updates (reduced frequency for real data)
+      // Start new interval for 60-second updates (1분마다 자동 새로고침)
       updateInterval = setInterval(() => {
-        fetchDashboardData();
+        fetchDashboardData(true); // 자동 새로고침 플래그 전달
       }, 60000);
     },
 
@@ -168,6 +182,13 @@ const generateMockData = (
         { category: 'Books', revenue: 18000 },
         { category: 'Home & Garden', revenue: 25000 },
         { category: 'Sports', revenue: 15000 },
+      ],
+      categorySales: [
+        { category: 'Electronics', count: 120 },
+        { category: 'Clothing', count: 95 },
+        { category: 'Books', count: 78 },
+        { category: 'Home & Garden', count: 65 },
+        { category: 'Sports', count: 52 },
       ],
     },
   };

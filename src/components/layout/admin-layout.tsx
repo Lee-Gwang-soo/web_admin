@@ -15,12 +15,12 @@ export const AdminLayout = memo<AdminLayoutProps>(function AdminLayout({
   // 개별 선택자로 변경하여 불필요한 리렌더링 방지
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
-  const initialize = useAuthStore((state) => state.initialize);
   const router = useRouter();
 
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  // RootLayout에서 이미 초기화하므로 여기서는 제거
+  // useEffect(() => {
+  //   initialize();
+  // }, [initialize]);
 
   useEffect(() => {
     if (!loading && !user) {

@@ -104,6 +104,11 @@ export interface CategoryRevenue {
   revenue: number;
 }
 
+export interface CategorySales {
+  category: string;
+  count: number;
+}
+
 // Supabase API Functions
 export const supabaseApi = {
   // Dashboard related queries
@@ -461,6 +466,76 @@ export const supabaseApi = {
         .sort((a, b) => b.revenue - a.revenue);
     } catch (error) {
       console.error('Error fetching category revenue:', error);
+      throw error;
+    }
+  },
+
+  async getCategorySales(
+    dateFilter: 'today' | 'yesterday' | 'week' = 'today'
+  ): Promise<CategorySales[]> {
+    const now = new Date();
+    const startDate = new Date();
+    const endDate = new Date();
+
+    switch (dateFilter) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'yesterday':
+        startDate.setDate(now.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setDate(now.getDate() - 1);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+    }
+
+    try {
+      const { data, error } = await supabase.from('order_items').select(`
+          quantity,
+          product:products(category),
+          order:orders(status, created_at)
+        `);
+
+      if (error) throw error;
+
+      const categorySales: { [key: string]: number } = {};
+
+      // Filter out items from cancelled and returned orders and apply date filter
+      const validItems =
+        data?.filter((item) => {
+          const order = item.order as unknown as {
+            status: string;
+            created_at: string;
+          };
+          const orderDate = new Date(order?.created_at);
+          const isValidStatus =
+            order?.status !== 'cancelled' && order?.status !== 'returned';
+          const isWithinDateRange =
+            orderDate >= startDate && orderDate <= endDate;
+          return isValidStatus && isWithinDateRange;
+        }) || [];
+
+      validItems.forEach((item) => {
+        const category =
+          (item.product as unknown as Product)?.category || 'Unknown';
+        categorySales[category] =
+          (categorySales[category] || 0) + item.quantity;
+      });
+
+      return Object.entries(categorySales)
+        .map(([category, count]) => ({
+          category,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count);
+    } catch (error) {
+      console.error('Error fetching category sales:', error);
       throw error;
     }
   },
