@@ -45,52 +45,103 @@ if (typeof window !== 'undefined') {
   (window as any).clearAuthDebugLogs = clearDebugLogs;
 }
 
-// 사용자를 commerce_user 테이블에 저장하는 함수
-const handleUserCreation = async (user: User) => {
+// 재시도 유틸리티 함수
+const retryWithBackoff = async <T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> => {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+        debugLog(`⏳ 재시도 대기 중... (${attempt + 1}/${maxRetries})`, {
+          delay,
+        });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+// 어드민 사용자를 admin_user 테이블에 저장하는 함수 (성능 최적화 버전)
+const handleUserCreation = async (
+  user: User,
+  skipIfExists = true
+): Promise<boolean> => {
   try {
-    debugLog('👤 사용자 정보:', {
+    debugLog('👤 어드민 사용자 정보:', {
       id: user.id,
       email: user.email,
       provider: user.app_metadata?.provider,
     });
 
-    // 이미 commerce_user 테이블에 존재하는지 확인
-    const { data: existingUser, error: checkError } = await supabase
-      .from('commerce_user')
-      .select('id')
-      .eq('id', user.id)
-      .single();
+    // 재시도 로직을 포함한 사용자 생성
+    const result = await retryWithBackoff(
+      async () => {
+        // 이미 존재하는지 확인 (선택적)
+        if (skipIfExists) {
+          const { data: existingUser, error: checkError } = await supabase
+            .from('admin_user')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle(); // single() 대신 maybeSingle() 사용으로 성능 개선
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      // PGRST116은 "not found" 에러코드
-      debugLog('❌ 사용자 존재 확인 에러:', checkError);
-      return;
-    }
+          if (checkError) {
+            debugLog('❌ 사용자 존재 확인 에러:', checkError);
+            throw checkError;
+          }
 
-    if (existingUser) {
-      debugLog('ℹ️ 사용자가 이미 commerce_user 테이블에 존재함');
-      return;
-    }
+          if (existingUser) {
+            debugLog('ℹ️ 사용자가 이미 admin_user 테이블에 존재함');
+            return { success: true, existed: true };
+          }
+        }
 
-    // commerce_user 테이블에 새 사용자 추가
-    const { data, error } = await supabase
-      .from('commerce_user')
-      .insert({
-        id: user.id,
-        email: user.email || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+        // admin_user 테이블에 새 어드민 사용자 추가
+        // upsert 사용으로 race condition 방지
+        const { data, error } = await supabase
+          .from('admin_user')
+          .upsert(
+            {
+              id: user.id,
+              email: user.email || '',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: 'id',
+              ignoreDuplicates: false, // 업데이트도 수행
+            }
+          )
+          .select()
+          .single();
 
-    if (error) {
-      debugLog('❌ 사용자 저장 실패:', error);
-    } else {
-      debugLog('✅ 사용자 commerce_user 테이블에 저장 성공:', data);
-    }
+        if (error) {
+          debugLog('❌ 어드민 사용자 저장 실패:', error);
+          throw error;
+        }
+
+        debugLog('✅ 어드민 사용자 admin_user 테이블에 저장 성공:', data);
+        return { success: true, existed: false };
+      },
+      3, // 최대 3번 재시도
+      1000 // 1초 base delay
+    );
+
+    return result.success;
   } catch (error) {
-    debugLog('❌ 사용자 처리 중 오류:', error);
+    debugLog('❌ 어드민 사용자 처리 중 오류 (재시도 실패):', error);
+    // Database Trigger가 실패를 대비하여 백업 처리
+    // 에러를 throw하지 않고 false 반환 (사용자 경험 개선)
+    return false;
   }
 };
 
@@ -137,7 +188,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user: data.user, error: null });
         debugLog('✅ 로그인 성공:', data.user.email);
 
-        // commerce_user 테이블에 사용자가 없으면 저장 (마이그레이션 대비)
+        // admin_user 테이블에 사용자가 없으면 저장 (마이그레이션 대비)
         await handleUserCreation(data.user);
 
         return { success: true };
@@ -177,7 +228,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.user) {
         debugLog('✅ 회원가입 성공:', data.user.email);
 
-        // commerce_user 테이블에 사용자 정보 저장
+        // admin_user 테이블에 어드민 사용자 정보 저장
         await handleUserCreation(data.user);
 
         // 이메일 확인이 필요한 경우
@@ -337,7 +388,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 인증 상태 변경 리스너 설정
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, session) => {
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
         debugLog('🔄 인증 상태 변경:', {
           event,
           userEmail: session?.user?.email || 'null',
@@ -352,9 +403,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               set({ user: session.user, error: null });
               debugLog('✅ SIGNED_IN 처리 완료:', session.user.email);
 
-              // 사용자를 commerce_user 테이블에 저장
-              debugLog('💾 commerce_user 테이블에 사용자 저장 시도');
-              handleUserCreation(session.user);
+              // 어드민 사용자를 admin_user 테이블에 저장 (await 추가)
+              debugLog('💾 admin_user 테이블에 어드민 사용자 저장 시도');
+              const created = await handleUserCreation(session.user);
+              if (created) {
+                debugLog('✅ admin_user 레코드 생성/확인 완료');
+              } else {
+                debugLog(
+                  '⚠️ admin_user 레코드 생성 실패 (Database Trigger가 처리할 것으로 예상)'
+                );
+              }
             }
             break;
           case 'SIGNED_OUT':

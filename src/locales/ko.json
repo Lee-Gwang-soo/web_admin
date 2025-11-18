@@ -154,8 +154,11 @@
       "orderStatusDescription": "주문 상태별 현황을 확인하세요",
       "categoryRevenue": "카테고리별 매출",
       "categoryRevenueDescription": "카테고리별 매출 분포를 확인하세요",
+      "categorySales": "카테고리별 판매건수",
+      "categorySalesDescription": "카테고리별 판매 수량을 확인하세요",
       "revenue": "매출",
       "count": "건",
+      "salesCount": "판매건수",
       "hour": "시간",
       "category": "카테고리"
     },
