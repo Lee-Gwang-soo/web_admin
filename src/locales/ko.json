@@ -201,7 +201,7 @@
     "totalRevenue": "총 매출",
     "pendingOrders": "처리 대기",
     "completedOrders": "배송 완료",
-    "searchPlaceholder": "주문 ID 또는 고객 이메일로 검색...",
+    "searchPlaceholder": "주문 ID 또는 고객 이메일로 검색",
     "allStatuses": "전체 상태",
     "exportExcel": "Excel 내보내기",
     "selectedItems": "{{count}}개 주문 선택됨",
@@ -287,7 +287,7 @@
       "description": "표시할 주문이 없습니다. 주문이 접수되면 여기에 표시됩니다."
     },
     "search": {
-      "placeholder": "주문 번호 또는 고객 이메일로 검색..."
+      "placeholder": "주문번호 또는 이메일 검색"
     },
     "filter": {
       "allStatuses": "전체 주문"
@@ -335,7 +335,7 @@
     "zeroStock": "재고 0개 상품",
     "categorySelect": "카테고리 선택",
     "allCategories": "전체 카테고리",
-    "searchByName": "상품명으로 검색...",
+    "searchByName": "상품명으로 검색",
     "bulkSelect": "{{count}}개 상품 선택됨",
     "clearSelection": "선택 해제",
     "bulkEdit": "일괄 수정",
@@ -417,7 +417,7 @@
     "loadingUsers": "사용자 정보를 불러오는 중...",
     "errorOccurred": "오류가 발생했습니다: {{error}}",
     "userCount": "명",
-    "searchPlaceholder": "사용자 이름 또는 이메일로 검색...",
+    "searchPlaceholder": "사용자 이름 또는 이메일로 검색",
     "userList": "사용자 목록",
     "name": "이름",
     "joinDate": "가입일",
@@ -464,7 +464,7 @@
       "description": "표시할 사용자가 없습니다."
     },
     "search": {
-      "placeholder": "사용자 이름 또는 이메일로 검색..."
+      "placeholder": "사용자 이름 또는 이메일로 검색"
     },
     "status": {
       "active": "활성"

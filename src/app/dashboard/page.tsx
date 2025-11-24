@@ -4,47 +4,57 @@ import { ChartsSection } from '@/components/organisms/dashboard/ChartsSection';
 import { DashboardControls } from '@/components/organisms/dashboard/DashboardControls';
 import { KPISection } from '@/components/organisms/dashboard/KPISection';
 import { DashboardTemplate } from '@/components/templates/DashboardTemplate';
+import { useDashboardData } from '@/hooks/useDashboardQueries';
 import { useDashboardStore } from '@/store/dashboard-store';
 import { useI18nStore } from '@/store/i18n-store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 export default function DashboardPage() {
   const { t, locale, isLoading: i18nLoading } = useI18nStore();
-  const {
-    kpiData,
-    chartData,
-    loading,
-    dateFilter,
-    fetchDashboardData,
-    setDateFilter,
-    startRealTimeUpdates,
-    stopRealTimeUpdates,
-  } = useDashboardStore();
 
-  // 페이지 타이틀 설정 (i18n 로딩 완료 후 + locale 변경 시)
+  // UI 상태 (Zustand)
+  const dateFilter = useDashboardStore((state) => state.dateFilter);
+  const setDateFilter = useDashboardStore((state) => state.setDateFilter);
+  const startRealTimeUpdates = useDashboardStore(
+    (state) => state.startRealTimeUpdates
+  );
+  const stopRealTimeUpdates = useDashboardStore(
+    (state) => state.stopRealTimeUpdates
+  );
+
+  // 서버 데이터 (React Query)
+  const {
+    kpi,
+    hourlyRevenue,
+    orderStatusDistribution,
+    categoryRevenue,
+    categorySales,
+    isLoading,
+    refetch,
+  } = useDashboardData(dateFilter);
+
+  // 페이지 타이틀 설정
   useEffect(() => {
     if (!i18nLoading) {
       document.title = `${t('dashboard.title')} - Admin Dashboard`;
     }
   }, [t, locale, i18nLoading]);
 
-  // Initialize dashboard data and real-time updates (마운트 시 한 번만 실행)
+  // 실시간 업데이트 초기화
   useEffect(() => {
-    // Store에서 직접 함수 가져오기
-    const store = useDashboardStore.getState();
-
-    store.fetchDashboardData();
-    store.startRealTimeUpdates();
+    startRealTimeUpdates(() => {
+      refetch();
+    });
 
     return () => {
-      store.stopRealTimeUpdates();
+      stopRealTimeUpdates();
     };
-  }, []); // 빈 배열로 마운트 시 한 번만 실행
+  }, [startRealTimeUpdates, stopRealTimeUpdates, refetch]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    refetch();
+  }, [refetch]);
 
   // Handle date filter change
   const handleDateFilterChange = useCallback(
@@ -64,14 +74,40 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // KPI 섹션 컴포넌트 (locale 변경 시 리렌더링 필요)
+  // 차트 데이터 구성
+  const chartData = useMemo(
+    () => ({
+      hourlyRevenue: hourlyRevenue || [],
+      orderStatusDistribution: orderStatusDistribution || [],
+      categoryRevenue: categoryRevenue || [],
+      categorySales: categorySales || [],
+    }),
+    [hourlyRevenue, orderStatusDistribution, categoryRevenue, categorySales]
+  );
+
+  // KPI 섹션 컴포넌트
   const kpiSection = useMemo(() => {
     return (
-      <KPISection data={kpiData} dateFilter={dateFilter} loading={loading} />
+      <KPISection
+        data={
+          kpi || {
+            todayRevenue: 0,
+            todayOrders: 0,
+            refunds: 0,
+            returns: 0,
+            revenueChange: 0,
+            ordersChange: 0,
+            refundsChange: 0,
+            returnsChange: 0,
+          }
+        }
+        dateFilter={dateFilter}
+        loading={isLoading}
+      />
     );
-  }, [kpiData, dateFilter, loading, locale]);
+  }, [kpi, dateFilter, isLoading, locale]);
 
-  // 컨트롤 섹션 컴포넌트 (locale 변경 시 리렌더링 필요)
+  // 컨트롤 섹션 컴포넌트
   const controlsSection = useMemo(() => {
     return (
       <DashboardControls
@@ -79,7 +115,7 @@ export default function DashboardPage() {
         onDateFilterChange={handleDateFilterChange}
         onRefresh={handleRefresh}
         onExport={handleExportData}
-        loading={loading}
+        loading={isLoading}
       />
     );
   }, [
@@ -87,14 +123,14 @@ export default function DashboardPage() {
     handleDateFilterChange,
     handleRefresh,
     handleExportData,
-    loading,
+    isLoading,
     locale,
   ]);
 
-  // 차트 섹션 컴포넌트 (locale 변경 시 리렌더링 필요)
+  // 차트 섹션 컴포넌트
   const chartsSection = useMemo(() => {
-    return <ChartsSection data={chartData} loading={loading} />;
-  }, [chartData, loading, locale]);
+    return <ChartsSection data={chartData} loading={isLoading} />;
+  }, [chartData, isLoading, locale]);
 
   return (
     <DashboardTemplate
@@ -103,7 +139,7 @@ export default function DashboardPage() {
       kpiSection={kpiSection}
       controlsSection={controlsSection}
       chartsSection={chartsSection}
-      loading={loading}
+      loading={isLoading}
     />
   );
 }

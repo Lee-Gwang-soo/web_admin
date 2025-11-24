@@ -1,4 +1,4 @@
-import { OrderWithItems, supabaseApi } from '@/lib/supabase';
+import { OrderWithItems } from '@/lib/supabase';
 import { create } from 'zustand';
 
 export type OrderSortField =
@@ -8,160 +8,70 @@ export type OrderSortField =
   | 'status';
 export type SortOrder = 'asc' | 'desc' | 'none';
 
+/**
+ * 주문 페이지 UI 상태 관리 스토어
+ * - React Query를 사용하므로 서버 데이터는 저장하지 않음
+ * - UI 상태만 관리: 검색, 필터, 정렬, 페이지네이션, 선택
+ */
 interface OrdersState {
-  orders: OrderWithItems[];
-  statuses: string[];
-  loading: boolean;
-  error: string | null;
+  // 필터 및 검색
   searchTerm: string;
   selectedStatus: string;
   sortField: OrderSortField;
   sortOrder: SortOrder;
-  selectedOrders: string[]; // Changed back to array
-  bulkActionLoading: boolean;
+
+  // UI 상태
+  selectedOrders: string[];
   selectedOrderForDetails: OrderWithItems | null;
   bulkStatusUpdate: string | null;
 
   // Pagination
   currentPage: number;
   itemsPerPage: number;
-  totalItems: number;
 
   // Actions
-  fetchOrders: () => Promise<void>;
-  fetchStatuses: () => Promise<void>;
   setSearchTerm: (term: string) => void;
   setSelectedStatus: (status: string) => void;
   setSorting: (field: OrderSortField) => void;
-  updateOrderStatus: (orderId: string, status: string) => Promise<void>;
-  bulkUpdateStatus: (orderIds: string[], status: string) => Promise<void>;
-  bulkDeleteOrders: (orderIds: string[]) => Promise<void>;
   toggleOrderSelection: (orderId: string) => void;
-  toggleAllOrdersSelection: () => void;
-  selectAllOrders: () => void;
+  toggleAllOrdersSelection: (orderIds: string[]) => void;
+  selectAllOrders: (orderIds: string[]) => void;
   clearSelection: () => void;
-  clearAllFilters: () => void; // 새로운 함수 - 모든 필터와 검색어 초기화
-  exportToExcel: () => void;
-  exportOrdersToExcel: () => void;
-  bulkUpdateOrderStatus: (orderIds: string[], status: string) => Promise<void>;
+  clearAllFilters: () => void;
+  exportToExcel: (orders: OrderWithItems[]) => void;
+  exportOrdersToExcel: (orders: OrderWithItems[]) => void;
   setBulkStatusUpdate: (status: string | null) => void;
   setSelectedOrderForDetails: (order: OrderWithItems | null) => void;
-  refreshData: () => Promise<void>;
 
   // Pagination actions
   setCurrentPage: (page: number) => void;
   setItemsPerPage: (itemsPerPage: number) => void;
-  nextPage: () => void;
+  nextPage: (totalItems: number) => void;
   prevPage: () => void;
 }
 
-// Memoized sorting function
-const sortOrders = (
-  orders: OrderWithItems[],
-  field: OrderSortField,
-  order: SortOrder
-): OrderWithItems[] => {
-  if (order === 'none') return orders;
-
-  return [...orders].sort((a, b) => {
-    let aValue: any;
-    let bValue: any;
-
-    switch (field) {
-      case 'created_at':
-        aValue = new Date(a.created_at);
-        bValue = new Date(b.created_at);
-        break;
-      case 'total_amount':
-        aValue = a.total_amount;
-        bValue = b.total_amount;
-        break;
-      case 'customer_email':
-        aValue = a.customer_email?.toLowerCase() || '';
-        bValue = b.customer_email?.toLowerCase() || '';
-        break;
-      case 'status':
-        aValue = a.status;
-        bValue = b.status;
-        break;
-      default:
-        return 0;
-    }
-
-    if (aValue < bValue) return order === 'asc' ? -1 : 1;
-    if (aValue > bValue) return order === 'asc' ? 1 : -1;
-    return 0;
-  });
-};
-
 export const useOrdersStore = create<OrdersState>((set, get) => ({
-  orders: [],
-  statuses: [],
-  loading: false,
-  error: null,
+  // 필터 및 검색
   searchTerm: '',
   selectedStatus: 'all',
   sortField: 'created_at',
   sortOrder: 'desc',
-  selectedOrders: [], // Changed back to array
-  bulkActionLoading: false,
+
+  // UI 상태
+  selectedOrders: [],
   selectedOrderForDetails: null,
   bulkStatusUpdate: null,
 
   // Pagination
   currentPage: 1,
   itemsPerPage: 10,
-  totalItems: 0,
-
-  fetchOrders: async () => {
-    try {
-      set({ loading: true, error: null });
-
-      const { searchTerm, selectedStatus } = get();
-
-      const orders = await supabaseApi.getOrders(
-        searchTerm || undefined,
-        selectedStatus !== 'all' ? selectedStatus : undefined
-      );
-
-      set({ orders, totalItems: orders.length, loading: false });
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-      set({ error: 'Failed to fetch orders', loading: false });
-    }
-  },
-
-  fetchStatuses: async () => {
-    try {
-      const statuses = await supabaseApi.getOrderStatuses();
-      set({ statuses: ['all', ...statuses] });
-    } catch (error) {
-      console.error('Error fetching statuses:', error);
-      set({
-        statuses: [
-          'all',
-          'pending',
-          'payment_confirmed',
-          'preparing',
-          'shipped',
-          'delivered',
-          'cancelled',
-          'returned',
-        ],
-      });
-    }
-  },
 
   setSearchTerm: (term: string) => {
-    console.log('🔍 Setting orders search term:', term);
-    set({ searchTerm: term });
-    // SearchBar에서 이미 debounce 처리했으므로 즉시 실행
-    get().fetchOrders();
+    set({ searchTerm: term, currentPage: 1 });
   },
 
   setSelectedStatus: (status: string) => {
-    set({ selectedStatus: status });
-    get().fetchOrders();
+    set({ selectedStatus: status, currentPage: 1 });
   },
 
   setSorting: (field: OrderSortField) => {
@@ -179,31 +89,9 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     }
 
     set({ sortField: field, sortOrder: newOrder });
-
-    // Apply sorting to current orders
-    const { orders } = get();
-    const sortedOrders = sortOrders(orders, field, newOrder);
-    set({ orders: sortedOrders });
   },
 
-  updateOrderStatus: async (orderId: string, status: string) => {
-    try {
-      await supabaseApi.updateOrderStatus(orderId, status);
-
-      // Update local state
-      const { orders } = get();
-      const updatedOrders = orders.map((order) =>
-        order.id === orderId ? { ...order, status: status as any } : order
-      );
-
-      set({ orders: updatedOrders });
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      throw error;
-    }
-  },
-
-  // Bulk operations
+  // Selection
   toggleOrderSelection: (orderId: string) => {
     const { selectedOrders } = get();
     const isSelected = selectedOrders.includes(orderId);
@@ -215,29 +103,24 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     }
   },
 
-  toggleAllOrdersSelection: () => {
-    const { orders, selectedOrders } = get();
-    const allOrderIds = orders.map((order) => order.id);
+  toggleAllOrdersSelection: (orderIds: string[]) => {
+    const { selectedOrders } = get();
 
-    if (selectedOrders.length === allOrderIds.length) {
+    if (selectedOrders.length === orderIds.length) {
       set({ selectedOrders: [] });
     } else {
-      set({ selectedOrders: allOrderIds });
+      set({ selectedOrders: orderIds });
     }
   },
 
-  selectAllOrders: () => {
-    const { orders, selectedOrders } = get();
-    const allOrderIds = orders.map((order) => order.id);
+  selectAllOrders: (orderIds: string[]) => {
+    const { selectedOrders } = get();
 
     // Toggle logic: if all are selected, clear selection; otherwise select all
-    if (
-      selectedOrders.length === allOrderIds.length &&
-      allOrderIds.length > 0
-    ) {
+    if (selectedOrders.length === orderIds.length && orderIds.length > 0) {
       set({ selectedOrders: [] });
     } else {
-      set({ selectedOrders: allOrderIds });
+      set({ selectedOrders: orderIds });
     }
   },
 
@@ -252,53 +135,8 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       sortField: 'created_at',
       sortOrder: 'desc',
       currentPage: 1,
-      selectedOrders: [], // selection도 함께 초기화
+      selectedOrders: [],
     });
-    get().fetchOrders();
-  },
-
-  bulkUpdateStatus: async (orderIds: string[], status: string) => {
-    try {
-      await supabaseApi.bulkUpdateOrderStatus(orderIds, status);
-
-      // Update local state
-      const { orders } = get();
-      const updatedOrders = orders.map((order) =>
-        orderIds.includes(order.id)
-          ? { ...order, status: status as any }
-          : order
-      );
-
-      set({
-        orders: updatedOrders,
-        selectedOrders: [],
-        bulkStatusUpdate: null,
-      });
-    } catch (error) {
-      console.error('Error bulk updating order status:', error);
-      throw error;
-    }
-  },
-
-  bulkUpdateOrderStatus: async (orderIds: string[], status: string) => {
-    return get().bulkUpdateStatus(orderIds, status);
-  },
-
-  bulkDeleteOrders: async (orderIds: string[]) => {
-    try {
-      await supabaseApi.bulkDeleteOrders(orderIds);
-
-      // Update local state
-      const { orders } = get();
-      const filteredOrders = orders.filter(
-        (order) => !orderIds.includes(order.id)
-      );
-
-      set({ orders: filteredOrders, selectedOrders: [] });
-    } catch (error) {
-      console.error('Error bulk deleting orders:', error);
-      throw error;
-    }
   },
 
   setBulkStatusUpdate: (status: string | null) => {
@@ -309,9 +147,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     set({ selectedOrderForDetails: order });
   },
 
-  exportToExcel: () => {
-    const { orders } = get();
-
+  exportToExcel: (orders: OrderWithItems[]) => {
     import('xlsx')
       .then((XLSX) => {
         // Prepare data for Excel export
@@ -357,26 +193,21 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       });
   },
 
-  exportOrdersToExcel: () => {
-    return get().exportToExcel();
-  },
-
-  refreshData: async () => {
-    await Promise.all([get().fetchOrders(), get().fetchStatuses()]);
+  exportOrdersToExcel: (orders: OrderWithItems[]) => {
+    return get().exportToExcel(orders);
   },
 
   // Pagination actions
   setCurrentPage: (page: number) => {
     set({ currentPage: page });
-    // 클라이언트 사이드 pagination이므로 fetch 불필요
   },
 
   setItemsPerPage: (itemsPerPage: number) => {
-    set({ itemsPerPage: itemsPerPage, currentPage: 1 }); // 페이지를 1로 리셋
+    set({ itemsPerPage: itemsPerPage, currentPage: 1 });
   },
 
-  nextPage: () => {
-    const { currentPage, totalItems, itemsPerPage } = get();
+  nextPage: (totalItems: number) => {
+    const { currentPage, itemsPerPage } = get();
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     if (currentPage < totalPages) {
       set({ currentPage: currentPage + 1 });

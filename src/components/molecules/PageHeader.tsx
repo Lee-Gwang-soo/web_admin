@@ -44,18 +44,18 @@ export const PageHeader = memo<PageHeaderProps>(function PageHeader({
   const content = useMemo(
     () => (
       <div className={containerClasses}>
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground dark:text-foreground">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-foreground dark:text-foreground break-words">
               {title}
             </h1>
             {description && (
-              <p className="text-sm text-muted-foreground dark:text-muted-foreground">
+              <p className="text-sm text-muted-foreground dark:text-muted-foreground break-words">
                 {description}
               </p>
             )}
             {badges && badges.length > 0 && (
-              <div className="flex items-center space-x-2 mt-2">
+              <div className="flex items-center flex-wrap gap-2 mt-2">
                 {badges.map((badge, index) => (
                   <Badge key={index} variant={badge.variant || 'secondary'}>
                     {badge.text}
@@ -66,7 +66,9 @@ export const PageHeader = memo<PageHeaderProps>(function PageHeader({
           </div>
 
           {actions && (
-            <div className="flex items-center space-x-2">{actions}</div>
+            <div className="flex items-center flex-wrap gap-2 shrink-0">
+              {actions}
+            </div>
           )}
         </div>
       </div>
