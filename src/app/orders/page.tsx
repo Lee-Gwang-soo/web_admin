@@ -1,7 +1,12 @@
 'use client';
 
+import {
+  DateCell,
+  PriceCell,
+  ActionButtonCell,
+} from '@/components/atoms/cells';
 import { SearchBar } from '@/components/molecules/SearchBar';
-import { DataTable } from '@/components/organisms/DataTable';
+import { DataTable, ColumnDef } from '@/components/organisms/DataTable';
 import { OrdersSummarySection } from '@/components/organisms/orders/OrdersSummarySection';
 import { OrdersTemplate } from '@/components/templates/OrdersTemplate';
 import { Badge } from '@/components/ui/badge';
@@ -27,25 +32,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTableState } from '@/hooks/useTableState';
+import {
+  useOrderStatuses,
+  useOrders,
+  useUpdateOrderStatus,
+} from '@/hooks/useOrdersQueries';
 import { OrderWithItems } from '@/lib/supabase';
 import { useTranslation } from '@/store/i18n-store';
-import { OrderSortField, useOrdersStore } from '@/store/orders-store';
+import { useOrdersStore } from '@/store/orders-store';
 import { motion } from 'framer-motion';
 import { Eye, FileSpreadsheet, RefreshCw } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// Order status badge configuration - 메모이제이션을 위해 함수 외부로 이동
-const STATUS_CONFIG: Record<string, { variant: any; color: string }> = {
-  pending: { variant: 'secondary', color: 'bg-yellow-100 text-yellow-800' },
-  payment_confirmed: {
-    variant: 'default',
-    color: 'bg-blue-100 text-blue-800',
-  },
-  preparing: { variant: 'default', color: 'bg-purple-100 text-purple-800' },
-  shipped: { variant: 'default', color: 'bg-green-100 text-green-800' },
-  delivered: { variant: 'default', color: 'bg-gray-100 text-gray-800' },
-  cancelled: { variant: 'destructive', color: 'bg-red-100 text-red-800' },
-  returned: { variant: 'outline', color: 'bg-gray-100 text-gray-600' },
+// Order status badge configuration
+const STATUS_CONFIG: Record<string, { color: string }> = {
+  pending: { color: 'bg-yellow-100 text-yellow-800' },
+  payment_confirmed: { color: 'bg-blue-100 text-blue-800' },
+  preparing: { color: 'bg-purple-100 text-purple-800' },
+  shipped: { color: 'bg-green-100 text-green-800' },
+  delivered: { color: 'bg-gray-100 text-gray-800' },
+  cancelled: { color: 'bg-red-100 text-red-800' },
+  returned: { color: 'bg-gray-100 text-gray-600' },
 };
 
 const getStatusBadge = (status: string, t: (key: string) => string) => {
@@ -57,281 +65,191 @@ const getStatusBadge = (status: string, t: (key: string) => string) => {
   );
 };
 
-// Optimized Cell Components with stable references
-interface OrderIdCellProps {
-  order: OrderWithItems;
-}
-
-const OrderIdCell = memo<OrderIdCellProps>(function OrderIdCell({ order }) {
-  return <span>#{order.id}</span>;
-});
-
-interface CustomerCellProps {
-  order: OrderWithItems;
-  t: (key: string) => string;
-}
-
-const CustomerCell = memo<CustomerCellProps>(function CustomerCell({
-  order,
-  t,
-}) {
-  return (
-    <span>
-      {order.customer_email || order.user?.email || t('orders.table.unknown')}
-    </span>
-  );
-});
-
-interface StatusCellProps {
-  order: OrderWithItems;
-  t: (key: string) => string;
-}
-
-const StatusCell = memo<StatusCellProps>(function StatusCell({ order, t }) {
-  return getStatusBadge(order.status, t);
-});
-
-interface AmountCellProps {
-  order: OrderWithItems;
-}
-
-const AmountCell = memo<AmountCellProps>(function AmountCell({ order }) {
-  return <span>{order.total_amount.toLocaleString()}원</span>;
-});
-
-interface DateCellProps {
-  order: OrderWithItems;
-}
-
-const DateCell = memo<DateCellProps>(function DateCell({ order }) {
-  return <span>{new Date(order.created_at).toLocaleDateString()}</span>;
-});
-
-// ActionButton 컴포넌트 - stable reference 사용
-interface ActionButtonProps {
-  order: OrderWithItems;
-  onSelect: (order: OrderWithItems) => void;
-  label: string;
-}
-
-const ActionButton = memo<ActionButtonProps>(function ActionButton({
-  order,
-  onSelect,
-  label,
-}) {
-  const handleClick = useCallback(() => {
-    onSelect(order);
-  }, [order, onSelect]);
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={handleClick}
-      className="h-8 w-8 p-0"
-      aria-label={label}
-    >
-      <Eye className="h-4 w-4" />
-    </Button>
-  );
-});
-
 // Order Details Modal Component
-interface OrderDetailsModalProps {
+function OrderDetailsModal({
+  order,
+  onClose,
+  onStatusUpdate,
+  t,
+}: {
   order: OrderWithItems;
   onClose: () => void;
-  onStatusUpdate: (orderId: string, status: string) => void;
+  onStatusUpdate: (orderId: string, status: string) => Promise<void>;
+  t: (key: string, params?: any) => string;
+}) {
+  const [updating, setUpdating] = useState(false);
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    setUpdating(true);
+    try {
+      await onStatusUpdate(order.id, newStatus);
+      onClose();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert(t('messages.updateError'));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const totalItems =
+    order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+  return (
+    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>
+          {t('orders.details.title')} #{order.id}
+        </DialogTitle>
+        <DialogDescription>{t('orders.details.description')}</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-6">
+        {/* Order Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('orders.details.orderInfo')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium">
+                  {t('orders.details.orderNumber')}
+                </p>
+                <p className="text-sm text-gray-600">#{order.id}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {t('orders.details.status')}
+                </p>
+                {getStatusBadge(order.status, t)}
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {t('orders.details.orderDate')}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <DateCell date={order.created_at} />
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {t('orders.details.customerEmail')}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {order.customer_email || order.user?.email}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Order Items */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('orders.details.orderItems')}</CardTitle>
+            <CardDescription>
+              {t('orders.details.totalItems', { count: totalItems.toString() })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {order.order_items?.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex justify-between items-center p-4 border rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {item.product?.name || t('orders.details.unknownProduct')}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {t('orders.details.quantity')}: {item.quantity} |{' '}
+                      {t('orders.details.unitPrice')}:{' '}
+                      {(item.price || 0).toLocaleString()}원
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">
+                      {(
+                        (item.quantity || 0) * (item.price || 0)
+                      ).toLocaleString()}
+                      원
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-4 border-t">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">
+                    {t('orders.details.totalItems', {
+                      count: totalItems.toString(),
+                    })}
+                  </span>
+                </div>
+                <div className="text-lg font-bold text-green-600">
+                  {t('orders.details.total')}{' '}
+                  {(order.total_amount || 0).toLocaleString()}원
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Status Update */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('orders.details.updateStatus')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-4">
+              <Select onValueChange={handleStatusUpdate} disabled={updating}>
+                <SelectTrigger className="w-48">
+                  <SelectValue
+                    placeholder={t('orders.details.selectNewStatus')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">
+                    {t('orders.status.pending')}
+                  </SelectItem>
+                  <SelectItem value="payment_confirmed">
+                    {t('orders.status.payment_confirmed')}
+                  </SelectItem>
+                  <SelectItem value="preparing">
+                    {t('orders.status.preparing')}
+                  </SelectItem>
+                  <SelectItem value="shipped">
+                    {t('orders.status.shipped')}
+                  </SelectItem>
+                  <SelectItem value="delivered">
+                    {t('orders.status.delivered')}
+                  </SelectItem>
+                  <SelectItem value="cancelled">
+                    {t('orders.status.cancelled')}
+                  </SelectItem>
+                  <SelectItem value="returned">
+                    {t('orders.status.returned')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {updating && (
+                <div className="text-sm text-gray-500">
+                  {t('orders.details.updating')}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DialogContent>
+  );
 }
 
-const OrderDetailsModal = memo<OrderDetailsModalProps>(
-  function OrderDetailsModal({ order, onClose, onStatusUpdate }) {
-    const { t } = useTranslation();
-    const [updating, setUpdating] = useState(false);
-
-    const handleStatusUpdate = useCallback(
-      async (newStatus: string) => {
-        setUpdating(true);
-        try {
-          await onStatusUpdate(order.id, newStatus);
-          onClose();
-        } catch (error) {
-          console.error('Failed to update status:', error);
-          alert(t('messages.updateError'));
-        } finally {
-          setUpdating(false);
-        }
-      },
-      [order.id, onStatusUpdate, onClose, t]
-    );
-
-    const totalItems = useMemo(
-      () =>
-        order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0,
-      [order.order_items]
-    );
-
-    return (
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {t('orders.details.title')} #{order.id}
-          </DialogTitle>
-          <DialogDescription>
-            {t('orders.details.description')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Order Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('orders.details.orderInfo')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium">
-                    {t('orders.details.orderNumber')}
-                  </p>
-                  <p className="text-sm text-gray-600">#{order.id}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">
-                    {t('orders.details.status')}
-                  </p>
-                  {getStatusBadge(order.status, t)}
-                </div>
-                <div>
-                  <p className="text-sm font-medium">
-                    {t('orders.details.orderDate')}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {new Date(order.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">
-                    {t('orders.details.customerEmail')}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {order.customer_email || order.user?.email}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Order Items */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('orders.details.orderItems')}</CardTitle>
-              <CardDescription>
-                {t('orders.details.totalItems', {
-                  count: totalItems.toString(),
-                })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {order.order_items?.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center p-4 border rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {item.product?.name ||
-                          t('orders.details.unknownProduct')}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {t('orders.details.quantity')}: {item.quantity} |{' '}
-                        {t('orders.details.unitPrice')}:{' '}
-                        {(item.price || 0).toLocaleString()}원
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">
-                        {(
-                          (item.quantity || 0) * (item.price || 0)
-                        ).toLocaleString()}
-                        원
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">
-                      {t('orders.details.totalItems', {
-                        count: totalItems.toString(),
-                      })}
-                    </span>
-                  </div>
-                  <div className="text-lg font-bold text-green-600">
-                    {t('orders.details.total')}{' '}
-                    {(order.total_amount || 0).toLocaleString()}원
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Status Update */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('orders.details.updateStatus')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-4">
-                <Select onValueChange={handleStatusUpdate} disabled={updating}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue
-                      placeholder={t('orders.details.selectNewStatus')}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">
-                      {t('orders.status.pending')}
-                    </SelectItem>
-                    <SelectItem value="payment_confirmed">
-                      {t('orders.status.payment_confirmed')}
-                    </SelectItem>
-                    <SelectItem value="preparing">
-                      {t('orders.status.preparing')}
-                    </SelectItem>
-                    <SelectItem value="shipped">
-                      {t('orders.status.shipped')}
-                    </SelectItem>
-                    <SelectItem value="delivered">
-                      {t('orders.status.delivered')}
-                    </SelectItem>
-                    <SelectItem value="cancelled">
-                      {t('orders.status.cancelled')}
-                    </SelectItem>
-                    <SelectItem value="returned">
-                      {t('orders.status.returned')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {updating && (
-                  <div className="text-sm text-gray-500">
-                    {t('orders.details.updating')}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </DialogContent>
-    );
-  }
-);
-
-// 메인 컴포넌트
-const OrdersPage = memo(function OrdersPage() {
+export default function OrdersPage() {
   const { t } = useTranslation();
 
   // 페이지 타이틀 설정
@@ -339,295 +257,257 @@ const OrdersPage = memo(function OrdersPage() {
     document.title = `${t('orders.title')} - Admin Dashboard`;
   }, [t]);
 
-  // 각 상태를 개별적으로 구독 (완전한 리렌더링 방지)
-  const selectedOrders = useOrdersStore((state) => state.selectedOrders);
-  const toggleOrderSelection = useOrdersStore(
-    (state) => state.toggleOrderSelection
+  // UI 상태 (Zustand)
+  const {
+    searchTerm,
+    selectedStatus,
+    sortField,
+    sortOrder,
+    selectedOrders,
+    currentPage,
+    itemsPerPage,
+    setSearchTerm,
+    setSelectedStatus,
+    setSorting,
+    toggleOrderSelection,
+    selectAllOrders,
+    clearAllFilters,
+    exportOrdersToExcel,
+    setCurrentPage,
+    setItemsPerPage,
+  } = useOrdersStore();
+
+  // 서버 데이터 (React Query)
+  const {
+    data: allOrders = [],
+    isLoading,
+    refetch,
+  } = useOrders(
+    searchTerm,
+    selectedStatus !== 'all' ? selectedStatus : undefined
   );
-  const selectAllOrders = useOrdersStore((state) => state.selectAllOrders);
-  const clearSelection = useOrdersStore((state) => state.clearSelection);
-  const clearAllFilters = useOrdersStore((state) => state.clearAllFilters);
-
-  // 데이터 관련 상태들
-  const orders = useOrdersStore((state) => state.orders);
-  const statuses = useOrdersStore((state) => state.statuses);
-  const loading = useOrdersStore((state) => state.loading);
-  const error = useOrdersStore((state) => state.error);
-  const searchTerm = useOrdersStore((state) => state.searchTerm);
-  const selectedStatus = useOrdersStore((state) => state.selectedStatus);
-  const sortField = useOrdersStore((state) => state.sortField);
-  const sortOrder = useOrdersStore((state) => state.sortOrder);
-
-  // Pagination 상태들
-  const currentPage = useOrdersStore((state) => state.currentPage);
-  const itemsPerPage = useOrdersStore((state) => state.itemsPerPage);
-  const totalItems = useOrdersStore((state) => state.totalItems);
-
-  // 액션 함수들
-  const setSearchTerm = useOrdersStore((state) => state.setSearchTerm);
-  const setSelectedStatus = useOrdersStore((state) => state.setSelectedStatus);
-  const setSorting = useOrdersStore((state) => state.setSorting);
-  const updateOrderStatus = useOrdersStore((state) => state.updateOrderStatus);
-  const exportOrdersToExcel = useOrdersStore(
-    (state) => state.exportOrdersToExcel
-  );
-  const refreshData = useOrdersStore((state) => state.refreshData);
-  const setCurrentPage = useOrdersStore((state) => state.setCurrentPage);
-  const setItemsPerPage = useOrdersStore((state) => state.setItemsPerPage);
+  const { data: rawStatuses = [] } = useOrderStatuses();
+  const updateStatusMutation = useUpdateOrderStatus();
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(
     null
   );
 
-  // Stable references using refs
-  const handleSelectOrderRef = useRef<(order: OrderWithItems) => void>(
-    () => {}
-  );
-  const tRef = useRef(t);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearAllFilters();
+    };
+  }, [clearAllFilters]);
 
-  tRef.current = t;
+  // 상태 목록 (all 제외)
+  const statuses = rawStatuses.filter((s) => s !== 'all');
 
-  // Stable handlers that don't change reference
-  const stableHandleSelectOrder = useCallback((order: OrderWithItems) => {
+  // 테이블 상태 관리 (커스텀 훅 사용)
+  const { sortedData, totalItems, getCurrentPageIds } = useTableState({
+    data: allOrders,
+    sortField,
+    sortOrder,
+    currentPage,
+    itemsPerPage,
+    selectedItems: selectedOrders,
+    getItemId: (order) => String(order.id),
+  });
+
+  // Handlers
+  const handleSelectOrder = useCallback((order: OrderWithItems) => {
     setSelectedOrder(order);
   }, []);
 
-  handleSelectOrderRef.current = stableHandleSelectOrder;
-
-  useEffect(() => {
-    refreshData();
-
-    // Cleanup function to clear all filters and selection when leaving the page
-    return () => {
-      clearAllFilters(); // This clears both filters and selection
-    };
-  }, [refreshData, clearAllFilters]);
-
-  // Memoized handlers to prevent unnecessary re-renders
   const handleCloseModal = useCallback(() => {
     setSelectedOrder(null);
   }, []);
 
   const handleStatusUpdate = useCallback(
     async (orderId: string, status: string) => {
-      await updateOrderStatus(orderId, status);
+      await updateStatusMutation.mutateAsync({ orderId, status });
     },
-    [updateOrderStatus]
+    [updateStatusMutation]
   );
 
-  // Static column definitions with stable cell renderers
-  const columns = useMemo(
+  const handleSelectAll = useCallback(() => {
+    const currentPageIds = getCurrentPageIds();
+    selectAllOrders(currentPageIds);
+  }, [getCurrentPageIds, selectAllOrders]);
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const handleExport = useCallback(() => {
+    exportOrdersToExcel(allOrders);
+  }, [exportOrdersToExcel, allOrders]);
+
+  // Column definitions (memoized to prevent unnecessary re-renders)
+  const columns: ColumnDef<OrderWithItems>[] = useMemo(
     () => [
       {
         id: 'id',
         header: t('orders.table.orderNumber'),
         sortable: true,
-        cell: (order: OrderWithItems) => <OrderIdCell order={order} />,
+        cell: (order) => <span>#{order.id}</span>,
       },
       {
         id: 'customer',
         header: t('orders.table.customer'),
         sortable: false,
-        cell: (order: OrderWithItems) => (
-          <CustomerCell order={order} t={tRef.current} />
+        cell: (order) => (
+          <span>
+            {order.customer_email ||
+              order.user?.email ||
+              t('orders.table.unknown')}
+          </span>
         ),
       },
       {
         id: 'status',
         header: t('orders.table.status'),
         sortable: true,
-        cell: (order: OrderWithItems) => (
-          <StatusCell order={order} t={tRef.current} />
-        ),
+        cell: (order) => getStatusBadge(order.status, t),
       },
       {
         id: 'total_amount',
         header: t('orders.table.amount'),
         sortable: true,
-        cell: (order: OrderWithItems) => <AmountCell order={order} />,
+        cell: (order) => <PriceCell amount={order.total_amount} />,
       },
       {
         id: 'created_at',
         header: t('orders.table.orderDate'),
         sortable: true,
-        cell: (order: OrderWithItems) => <DateCell order={order} />,
+        cell: (order) => <DateCell date={order.created_at} />,
       },
       {
         id: 'actions',
         header: t('orders.table.actions'),
         sortable: false,
-        cell: (order: OrderWithItems) => (
-          <ActionButton
-            order={order}
-            onSelect={handleSelectOrderRef.current!}
+        cell: (order) => (
+          <ActionButtonCell
+            icon={Eye}
+            onClick={() => handleSelectOrder(order)}
             label={t('orders.actions.viewDetails')}
           />
         ),
       },
     ],
-    [t] // Only depend on t, not on handlers
+    [t, handleSelectOrder]
   );
-
-  // Controls section - 완전히 독립적인 메모이제이션
-  const controlsSection = useMemo(
-    () => (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between"
-      >
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="flex-1 max-w-md">
-            <SearchBar
-              searchValue={searchTerm}
-              onSearchChange={setSearchTerm}
-              placeholder={t('orders.search.placeholder')}
-              debounceMs={1500} // 1.5초 debounce
-              className="w-full"
-            />
-          </div>
-
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder={t('orders.filter.allStatuses')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                {t('orders.filter.allStatuses')}
-              </SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {t(`orders.status.${status}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={refreshData} disabled={loading}>
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
-            />
-            {t('common.refresh')}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={exportOrdersToExcel}
-            disabled={loading}
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            {t('orders.actions.exportExcel')}
-          </Button>
-        </div>
-      </motion.div>
-    ),
-    [
-      searchTerm,
-      selectedStatus,
-      statuses,
-      loading,
-      refreshData,
-      exportOrdersToExcel,
-      setSearchTerm,
-      setSelectedStatus,
-      t,
-    ]
-  );
-
-  // Table section - 독립적인 메모이제이션
-  const tableSection = useMemo(
-    () => (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <DataTable
-          data={orders}
-          columns={columns}
-          loading={loading}
-          error={error}
-          emptyStateTitle={t('orders.empty.title')}
-          emptyStateDescription={t('orders.empty.description')}
-          emptyStateIcon={Eye}
-          sortConfig={{
-            field: sortField,
-            order: sortOrder === 'none' ? null : sortOrder,
-          }}
-          onSort={(field) => setSorting(field as OrderSortField)}
-          selectedItems={selectedOrders}
-          onItemSelect={toggleOrderSelection}
-          onSelectAll={selectAllOrders}
-          getItemId={(order) => String(order.id)}
-          showPagination={true}
-          currentPage={currentPage}
-          itemsPerPage={itemsPerPage}
-          totalItems={totalItems}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={setItemsPerPage}
-        />
-      </motion.div>
-    ),
-    [
-      orders,
-      columns,
-      loading,
-      error,
-      sortField,
-      sortOrder,
-      selectedOrders,
-      toggleOrderSelection,
-      selectAllOrders,
-      setSorting,
-      t,
-      currentPage,
-      itemsPerPage,
-      totalItems,
-      setCurrentPage,
-      setItemsPerPage,
-    ]
-  );
-
-  // Summary section
-  const summarySection = useMemo(
-    () => <OrdersSummarySection orders={orders} loading={loading} />,
-    [orders, loading]
-  );
-
-  // Modal 렌더링을 조건부로 최적화
-  const modal = useMemo(() => {
-    if (!selectedOrder) return null;
-
-    return (
-      <Dialog open={true} onOpenChange={handleCloseModal}>
-        <OrderDetailsModal
-          order={selectedOrder}
-          onClose={handleCloseModal}
-          onStatusUpdate={handleStatusUpdate}
-        />
-      </Dialog>
-    );
-  }, [selectedOrder, handleCloseModal, handleStatusUpdate]);
 
   return (
     <>
       <OrdersTemplate
         title={t('orders.managementTitle')}
         description={t('orders.managementDescription')}
-        summarySection={summarySection}
-        controlsSection={controlsSection}
-        tableSection={tableSection}
-        modals={null} // modals를 별도로 렌더링
-        loading={loading}
+        summarySection={
+          <OrdersSummarySection orders={allOrders} loading={isLoading} />
+        }
+        controlsSection={
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between"
+          >
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder={t('orders.filter.allStatuses')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {t('orders.filter.allStatuses')}
+                  </SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {t(`orders.status.${status}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex-1 max-w-4xl">
+                <SearchBar
+                  searchValue={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  placeholder={t('orders.search.placeholder')}
+                  debounceMs={1500}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}
+                />
+                {t('common.refresh')}
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={isLoading}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                {t('orders.actions.exportExcel')}
+              </Button>
+            </div>
+          </motion.div>
+        }
+        tableSection={
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <DataTable
+              data={sortedData}
+              columns={columns}
+              loading={isLoading}
+              error={null}
+              emptyStateTitle={t('orders.empty.title')}
+              emptyStateDescription={t('orders.empty.description')}
+              emptyStateIcon={Eye}
+              sortConfig={{
+                field: sortField,
+                order: sortOrder === 'none' ? null : sortOrder,
+              }}
+              onSort={(field) => setSorting(field as any)}
+              selectedItems={selectedOrders}
+              onItemSelect={toggleOrderSelection}
+              onSelectAll={handleSelectAll}
+              getItemId={(order) => String(order.id)}
+              showPagination={true}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={totalItems}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+            />
+          </motion.div>
+        }
+        modals={null}
+        loading={isLoading}
       />
-      {modal}
+      {selectedOrder && (
+        <Dialog open={true} onOpenChange={handleCloseModal}>
+          <OrderDetailsModal
+            order={selectedOrder}
+            onClose={handleCloseModal}
+            onStatusUpdate={handleStatusUpdate}
+            t={t}
+          />
+        </Dialog>
+      )}
     </>
   );
-});
-
-export default OrdersPage;
+}

@@ -27,43 +27,69 @@ npm run prepare         # Husky hooks 설정
 
 ## 아키텍처
 
-### 상태 관리 (Zustand)
+### 상태 관리 (Zustand + React Query)
 
-애플리케이션은 7개의 Zustand 스토어를 사용하여 전역 상태를 관리합니다:
+애플리케이션은 **하이브리드 상태 관리 전략**을 사용합니다:
+
+#### 🔄 React Query (TanStack Query v5) - 서버 상태
+
+- **위치**: `src/hooks/use*Queries.ts`
+- **역할**: API 데이터 fetching, 캐싱, 동기화
+- **주요 기능**:
+  - 자동 캐싱 및 백그라운드 재검증
+  - 낙관적 업데이트 (Optimistic Updates)
+  - 중복 요청 자동 제거
+  - 에러 처리 및 재시도 로직
+  - React Query Devtools 내장
+
+**Query Hooks**:
+
+- `useDashboardQueries.ts`: 대시보드 KPI, 차트 데이터
+- `useProductsQueries.ts`: 상품 CRUD, 이미지 업로드
+- `useOrdersQueries.ts`: 주문 관리, 상태 업데이트
+- `useUsersQueries.ts`: 사용자 목록 조회
+
+#### 🎨 Zustand - UI 상태
+
+- **위치**: `src/store/*-store.ts`
+- **역할**: 클라이언트 전용 UI 상태 관리
+- **관리 항목**: 검색어, 필터, 정렬, 페이지네이션, 선택된 항목, 모달 상태
+
+**Zustand 스토어**:
 
 1. **auth-store.ts**: 사용자 인증 및 세션 관리
    - Supabase Auth를 통한 이메일/비밀번호 및 GitHub OAuth 처리
    - URL 파라미터(#access_token)를 통한 OAuth 콜백 자동 감지
    - localStorage에 저장되는 포괄적인 디버그 로깅 (최대 100개 항목)
-   - 세션 생명주기: SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED
 
 2. **theme-store.ts**: 다크/라이트/시스템 테마 관리
    - document root에 'dark' 클래스 적용
    - 미디어 쿼리를 통한 시스템 설정 변경 감지
-   - localStorage에 영구 저장
 
-3. **i18n-store.ts**: 커스텀 다국어 지원 (next-intl 미들웨어 대신 사용)
+3. **i18n-store.ts**: 커스텀 다국어 지원
    - import()를 통한 동적 로케일 파일 로딩
-   - 중첩된 키를 점 표기법으로 평탄화
-   - 파라미터 치환: `t('key', { name: 'John' })`이 `{{name}}`을 대체
-   - 지원 언어: ko (기본값), en
+   - 파라미터 치환: `t('key', { name: 'John' })`
 
-4. **dashboard-store.ts**: KPI 지표 및 차트 데이터
-   - 실시간 업데이트 인터벌 관리
-   - 날짜 필터: 오늘/어제/최근 7일
+4. **dashboard-store.ts**: UI 상태 (날짜 필터, 자동 새로고침 인터벌)
 
-5. **products-store.ts**: 페이지네이션, 정렬, 필터링이 포함된 상품 목록
-   - 다중 선택을 통한 벌크 작업
-   - Excel 내보내기 기능
+5. **products-store.ts**: UI 상태 (검색, 카테고리 필터, 정렬, 선택, 페이지네이션)
 
-6. **orders-store.ts** & **users-store.ts**: 주문/사용자를 위한 유사한 패턴
+6. **orders-store.ts**: UI 상태 (검색, 상태 필터, 정렬, 선택, 페이지네이션)
 
-**사용 패턴**: 불필요한 리렌더링을 방지하기 위해 세분화된 셀렉터 사용
+7. **users-store.ts**: UI 상태 (검색, 선택된 사용자)
+
+**사용 패턴**:
 
 ```typescript
-const user = useAuthStore((state) => state.user);
-const loading = useAuthStore((state) => state.loading);
+// UI 상태 (Zustand)
+const searchTerm = useProductsStore((state) => state.searchTerm);
+const setSearchTerm = useProductsStore((state) => state.setSearchTerm);
+
+// 서버 데이터 (React Query)
+const { data: products, isLoading } = useProducts(searchTerm);
 ```
+
+📖 **상세 가이드**: `REACT_QUERY_MIGRATION.md` 참조
 
 ### 컴포넌트 아키텍처 (Atomic Design)
 
@@ -106,12 +132,17 @@ Supabase REST API
        ↓
 supabaseApi functions (lib/supabase.ts)
        ↓
-Zustand Stores (캐시 + 상태)
+React Query Hooks (자동 캐싱, 재검증, 낙관적 업데이트)
        ↓
-React Query (선택적 캐싱 레이어)
-       ↓
-Components
+Components ← → Zustand Stores (UI 상태)
 ```
+
+**캐싱 전략**:
+
+- **staleTime**: 1-2분 (데이터가 fresh한 상태로 유지)
+- **gcTime**: 5-10분 (캐시 데이터 메모리 유지 시간)
+- **자동 재검증**: 네트워크 재연결 시
+- **낙관적 업데이트**: 모든 mutations에 적용
 
 ### 초기화 흐름
 

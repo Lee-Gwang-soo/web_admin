@@ -358,43 +358,78 @@ const IndependentMobileCard = memo(function IndependentMobileCard<T>({
   isSelected,
   onItemSelect,
 }: IndependentMobileCardProps<T>) {
+  // Separate image column from other columns for better mobile layout
+  const imageColumn = columns.find((col) => col.id === 'image');
+  const otherColumns = columns.filter(
+    (col) => col.id !== 'image' && col.id !== 'actions'
+  );
+  const actionsColumn = columns.find((col) => col.id === 'actions');
+
   return (
     <div
       className={cn(
-        'border rounded-lg p-4 space-y-3',
+        'border rounded-lg overflow-hidden',
         isSelected && 'bg-muted/50 border-primary'
       )}
     >
-      {/* Selection for mobile */}
-      {onItemSelect && (
-        <div className="flex justify-between items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onItemSelect(itemId)}
-            className="h-auto p-0"
-          >
-            {isSelected ? (
-              <CheckSquare className="h-4 w-4 mr-2" />
-            ) : (
-              <Square className="h-4 w-4 mr-2" />
-            )}
-            Select
-          </Button>
+      {/* Image section at the top if exists */}
+      {imageColumn && (
+        <div className="bg-muted/30 p-4 flex items-center justify-center border-b">
+          <div className="w-32 h-32 flex items-center justify-center">
+            {imageColumn.mobileCell
+              ? imageColumn.mobileCell(item)
+              : imageColumn.cell(item)}
+          </div>
         </div>
       )}
 
-      {/* Mobile content */}
-      {columns.map((column) => (
-        <div key={column.id} className="space-y-1">
-          <div className="text-sm font-medium text-muted-foreground">
-            {column.header}
+      {/* Content section */}
+      <div className="p-4 space-y-3">
+        {/* Selection for mobile */}
+        {onItemSelect && (
+          <div className="flex justify-between items-center pb-2 border-b">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onItemSelect(itemId)}
+              className="h-auto p-0"
+            >
+              {isSelected ? (
+                <CheckSquare className="h-4 w-4 mr-2" />
+              ) : (
+                <Square className="h-4 w-4 mr-2" />
+              )}
+              Select
+            </Button>
           </div>
-          <div>
-            {column.mobileCell ? column.mobileCell(item) : column.cell(item)}
+        )}
+
+        {/* Other content */}
+        {otherColumns.map((column) => (
+          <div key={column.id} className="space-y-1">
+            <div className="text-sm font-medium text-muted-foreground">
+              {column.header}
+            </div>
+            <div>
+              {column.mobileCell ? column.mobileCell(item) : column.cell(item)}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+
+        {/* Actions at the bottom */}
+        {actionsColumn && (
+          <div className="pt-2 border-t">
+            <div className="text-sm font-medium text-muted-foreground mb-2">
+              {actionsColumn.header}
+            </div>
+            <div>
+              {actionsColumn.mobileCell
+                ? actionsColumn.mobileCell(item)
+                : actionsColumn.cell(item)}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }) as <T>(props: IndependentMobileCardProps<T>) => React.ReactElement;

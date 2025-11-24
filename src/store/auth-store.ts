@@ -301,15 +301,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     try {
       debugLog('👋 로그아웃 시도');
+      set({ loading: true, error: null });
 
-      const { error } = await supabase.auth.signOut();
+      // Supabase 세션 완전히 제거
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
 
       if (error) {
         debugLog('❌ 로그아웃 에러:', error.message);
-        set({ error: error.message });
+        set({ error: error.message, loading: false });
       } else {
-        set({ user: null, error: null });
+        // 상태 완전히 초기화
+        set({ user: null, error: null, loading: false });
         debugLog('✅ 로그아웃 완료');
+
+        // 명시적으로 로그인 페이지로 이동
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       }
     } catch (error) {
       debugLog('❌ 로그아웃 에러:', error);
@@ -318,27 +326,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ? error.message
           : '로그아웃 중 오류가 발생했습니다.';
       set({ error: errorMessage });
-      // 에러가 있어도 로컬 상태는 정리
-      set({ user: null });
+      // 에러가 있어도 로컬 상태는 정리하고 로그인 페이지로 이동
+      set({ user: null, loading: false });
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
   },
 
   initialize: async () => {
+    // 타임아웃 설정 (10초 후 강제로 loading 해제)
+    const timeout = setTimeout(() => {
+      debugLog('⚠️ 인증 초기화 타임아웃 - 강제로 loading 해제');
+      set({ loading: false });
+    }, 10000);
+
     try {
       set({ loading: true, error: null });
       debugLog('🔄 Supabase 인증 시스템 초기화 시작');
 
       // URL에서 OAuth 토큰 확인
       if (typeof window !== 'undefined') {
-        const currentUrl = window.location.href;
         const hashParams = window.location.hash;
         const searchParams = window.location.search;
-
-        debugLog('🌐 현재 URL 정보:', {
-          url: currentUrl,
-          hash: hashParams,
-          search: searchParams,
-        });
 
         // OAuth 관련 파라미터가 있는지 확인
         if (
@@ -353,48 +363,59 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           if (hashParams.includes('access_token')) {
             debugLog('🔧 수동 토큰 처리 시도');
             try {
-              const { data, error } = await supabase.auth.getSession();
+              const result = await Promise.race([
+                supabase.auth.getSession(),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('Session timeout')), 5000)
+                ),
+              ]);
+              const { data, error } = result as Awaited<
+                ReturnType<typeof supabase.auth.getSession>
+              >;
               if (error) {
                 debugLog('❌ 수동 세션 확인 실패:', error);
-              } else {
+              } else if (data && 'session' in data) {
                 debugLog(
                   '✅ 수동 세션 확인 성공:',
                   data.session?.user?.email || 'no user'
                 );
               }
             } catch (e) {
-              debugLog('❌ 수동 처리 중 오류:', e);
+              debugLog('❌ 수동 처리 중 오류 (타임아웃 포함):', e);
             }
           }
         }
       }
 
-      // 현재 세션 확인
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+      // 현재 세션 확인 (타임아웃 포함)
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<{ data: { session: null }; error: Error }>((_, reject) =>
+          setTimeout(() => reject(new Error('세션 확인 타임아웃')), 5000)
+        ),
+      ]).catch((error) => {
+        debugLog('❌ 세션 확인 타임아웃:', error);
+        return { data: { session: null }, error };
+      });
 
-      if (error) {
-        debugLog('❌ 세션 확인 에러:', error.message);
-        set({ error: error.message });
-      } else if (session?.user) {
-        set({ user: session.user });
-        debugLog('✅ 기존 세션 복구:', session.user.email);
+      if (sessionResult.error) {
+        debugLog('❌ 세션 확인 에러:', sessionResult.error);
+        set({
+          error: sessionResult.error.message || String(sessionResult.error),
+        });
+      } else if (sessionResult.data.session?.user) {
+        set({ user: sessionResult.data.session.user });
+        debugLog('✅ 기존 세션 복구:', sessionResult.data.session.user.email);
       } else {
         debugLog('ℹ️ 기존 세션 없음');
       }
 
       // 인증 상태 변경 리스너 설정
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (event, session) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
         debugLog('🔄 인증 상태 변경:', {
           event,
           userEmail: session?.user?.email || 'null',
           hasSession: !!session,
-          hasUser: !!session?.user,
-          provider: session?.user?.app_metadata?.provider,
         });
 
         switch (event) {
@@ -403,16 +424,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               set({ user: session.user, error: null });
               debugLog('✅ SIGNED_IN 처리 완료:', session.user.email);
 
-              // 어드민 사용자를 admin_user 테이블에 저장 (await 추가)
-              debugLog('💾 admin_user 테이블에 어드민 사용자 저장 시도');
-              const created = await handleUserCreation(session.user);
-              if (created) {
-                debugLog('✅ admin_user 레코드 생성/확인 완료');
-              } else {
-                debugLog(
-                  '⚠️ admin_user 레코드 생성 실패 (Database Trigger가 처리할 것으로 예상)'
-                );
-              }
+              // 어드민 사용자를 admin_user 테이블에 저장
+              handleUserCreation(session.user).catch((error) => {
+                debugLog('⚠️ admin_user 레코드 생성 실패:', error);
+              });
             }
             break;
           case 'SIGNED_OUT':
@@ -427,9 +442,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             set({ user: session?.user ?? null });
             debugLog('📝 USER_UPDATED 처리 완료');
             break;
-          default:
-            debugLog('❓ 알 수 없는 인증 이벤트:', event);
-            break;
         }
       });
 
@@ -442,7 +454,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           : '인증 시스템 초기화 중 오류가 발생했습니다.';
       set({ error: errorMessage });
     } finally {
+      clearTimeout(timeout);
       set({ loading: false });
+      debugLog('✅ 인증 초기화 완료 - loading: false');
     }
   },
 
