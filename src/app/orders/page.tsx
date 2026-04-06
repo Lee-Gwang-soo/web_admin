@@ -1,12 +1,12 @@
 'use client';
 
 import {
+  ActionButtonCell,
   DateCell,
   PriceCell,
-  ActionButtonCell,
 } from '@/components/atoms/cells';
 import { SearchBar } from '@/components/molecules/SearchBar';
-import { DataTable, ColumnDef } from '@/components/organisms/DataTable';
+import { ColumnDef, DataTable } from '@/components/organisms/DataTable';
 import { OrdersSummarySection } from '@/components/organisms/orders/OrdersSummarySection';
 import { OrdersTemplate } from '@/components/templates/OrdersTemplate';
 import { Badge } from '@/components/ui/badge';
@@ -32,12 +32,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useTableState } from '@/hooks/useTableState';
 import {
   useOrderStatuses,
   useOrders,
   useUpdateOrderStatus,
 } from '@/hooks/useOrdersQueries';
+import { useTableState } from '@/hooks/useTableState';
 import { OrderWithItems } from '@/lib/supabase';
 import { useTranslation } from '@/store/i18n-store';
 import { useOrdersStore } from '@/store/orders-store';
@@ -98,9 +98,7 @@ function OrderDetailsModal({
   return (
     <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>
-          {t('orders.details.title')} #{order.id}
-        </DialogTitle>
+        <DialogTitle>{t('orders.details.title')}</DialogTitle>
         <DialogDescription>{t('orders.details.description')}</DialogDescription>
       </DialogHeader>
 
