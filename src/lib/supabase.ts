@@ -23,7 +23,8 @@ export interface User {
 }
 
 export interface Order {
-  id: string; // 8글자 텍스트 ID (예: AB12CD34)
+  id: string;
+  order_id?: string; // 사람이 읽기 쉬운 주문번호 (예: AB12CD34)
   user_id: string;
   status:
     | 'pending'

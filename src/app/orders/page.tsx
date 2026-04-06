@@ -114,7 +114,9 @@ function OrderDetailsModal({
                 <p className="text-sm font-medium">
                   {t('orders.details.orderNumber')}
                 </p>
-                <p className="text-sm text-gray-600">{order.id}</p>
+                <p className="text-sm text-gray-600">
+                  {order.order_id || order.id}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium">
@@ -348,7 +350,7 @@ export default function OrdersPage() {
         id: 'id',
         header: t('orders.table.orderNumber'),
         sortable: true,
-        cell: (order) => <span>{order.id}</span>,
+        cell: (order) => <span>{order.order_id || order.id}</span>,
       },
       {
         id: 'customer',
