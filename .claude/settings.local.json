@@ -17,7 +17,9 @@
       "Bash(2>&1)",
       "Bash(npx eslint:*)",
       "Bash(nvm version:*)",
-      "Bash(nvm list:*)"
+      "Bash(nvm list:*)",
+      "Bash(npm run:*)",
+      "Bash(npx next:*)"
     ],
     "deny": [],
     "ask": []

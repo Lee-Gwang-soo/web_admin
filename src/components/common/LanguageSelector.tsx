@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useI18nStore, useTranslation, type Locale } from '@/store/i18n-store';
 import { Check, Globe } from 'lucide-react';
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 
 interface LanguageSelectorProps {
   className?: string;
@@ -21,15 +21,6 @@ const LanguageSelector = memo(function LanguageSelector({
 }: LanguageSelectorProps) {
   const { locale, toggleLocale, isLoading } = useI18nStore();
   const { t } = useTranslation();
-  const [isChanging, setIsChanging] = useState(false);
-
-  // 언어 변경 완료 감지
-  useEffect(() => {
-    if (!isLoading && isChanging) {
-      setIsChanging(false);
-      console.log(`🎉 Language successfully changed to: ${locale}`);
-    }
-  }, [isLoading, isChanging, locale]);
 
   // 현재 언어 정보
   const getLanguageInfo = (currentLocale: Locale) => {
@@ -57,14 +48,12 @@ const LanguageSelector = memo(function LanguageSelector({
 
   const currentLang = getLanguageInfo(locale);
 
-  const handleToggle = async () => {
+  const handleToggle = () => {
     console.log(`🔄 Language toggle requested`);
-    setIsChanging(true);
     toggleLocale();
   };
 
-  // 로딩 중이거나 변경 중일 때
-  if (isLoading || isChanging) {
+  if (isLoading) {
     return (
       <Button
         variant={variant}
@@ -109,14 +98,6 @@ export const LanguageDropdown = memo(function LanguageDropdown({
   const { locale, setLocale, isLoading } = useI18nStore();
   const { t } = useTranslation();
   const [changingTo, setChangingTo] = useState<Locale | null>(null);
-
-  // 언어 변경 완료 감지
-  useEffect(() => {
-    if (!isLoading && changingTo && locale === changingTo) {
-      setChangingTo(null);
-      console.log(`🎉 Language dropdown change completed: ${locale}`);
-    }
-  }, [isLoading, changingTo, locale]);
 
   const languages = [
     {

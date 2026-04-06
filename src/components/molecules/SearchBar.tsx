@@ -41,15 +41,6 @@ export const SearchBar = memo<SearchBarProps>(function SearchBar({
   // 완전히 독립적인 로컬 상태 (외부 상태와 동기화하지 않음)
   const [localValue, setLocalValue] = useState(searchValue);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isInitializedRef = useRef(false);
-
-  // 초기값 설정 (한 번만)
-  useEffect(() => {
-    if (!isInitializedRef.current) {
-      setLocalValue(searchValue);
-      isInitializedRef.current = true;
-    }
-  }, [searchValue]);
 
   // 완전히 독립적인 debounced 검색
   const performDebouncedSearch = useCallback(

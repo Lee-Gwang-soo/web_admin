@@ -348,7 +348,7 @@ export default function OrdersPage() {
         id: 'id',
         header: t('orders.table.orderNumber'),
         sortable: true,
-        cell: (order) => <span>{order.order_id || order.id}</span>,
+        cell: (order) => <span>{order.id}</span>,
       },
       {
         id: 'customer',
