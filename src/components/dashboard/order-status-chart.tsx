@@ -101,7 +101,6 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
           </text>
         ) : null;
       };
-      LabelComponent.displayName = 'LabelComponent';
       return LabelComponent;
     }, []);
 
@@ -116,7 +115,6 @@ export const OrderStatusChart = memo<OrderStatusChartProps>(
           </span>
         );
       };
-      LegendComponent.displayName = 'LegendComponent';
       return LegendComponent;
     }, [getStatusDisplayName, t]);
 

@@ -9,7 +9,17 @@
       "Bash(npm run build:*)",
       "Bash(node scripts/migrate-users.mjs:*)",
       "Bash(cat:*)",
-      "Bash(node scripts/update-product-images.mjs:*)"
+      "Bash(node scripts/update-product-images.mjs:*)",
+      "Bash(npm show:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const c = require\\('./node_modules/eslint-config-next'\\); console.log\\(Object.keys\\(c\\)\\)\")",
+      "Bash(node --input-type=module)",
+      "Bash(2>&1)",
+      "Bash(npx eslint:*)",
+      "Bash(nvm version:*)",
+      "Bash(nvm list:*)",
+      "Bash(npm run:*)",
+      "Bash(npx next:*)"
     ],
     "deny": [],
     "ask": []

@@ -132,8 +132,8 @@ const handleUserCreation = async (
         debugLog('✅ 어드민 사용자 admin_user 테이블에 저장 성공:', data);
         return { success: true, existed: false };
       },
-      3, // 최대 3번 재시도
-      1000 // 1초 base delay
+      1, // 최대 1번 재시도 (RLS 에러는 재시도해도 소용없음)
+      300 // 300ms base delay (빠른 실패)
     );
 
     return result.success;
@@ -189,7 +189,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         debugLog('✅ 로그인 성공:', data.user.email);
 
         // admin_user 테이블에 사용자가 없으면 저장 (마이그레이션 대비)
-        await handleUserCreation(data.user);
+        // 실패해도 로그인 흐름에 영향 없도록 백그라운드에서 처리
+        handleUserCreation(data.user).catch(() => {
+          // RLS 정책으로 실패할 수 있음 - 무시
+        });
 
         return { success: true };
       }
@@ -229,7 +232,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         debugLog('✅ 회원가입 성공:', data.user.email);
 
         // admin_user 테이블에 어드민 사용자 정보 저장
-        await handleUserCreation(data.user);
+        // 실패해도 회원가입 흐름에 영향 없도록 백그라운드에서 처리
+        handleUserCreation(data.user).catch(() => {
+          // RLS 정책으로 실패할 수 있음 - 무시
+        });
 
         // 이메일 확인이 필요한 경우
         if (!data.user.email_confirmed_at) {

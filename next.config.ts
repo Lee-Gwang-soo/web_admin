@@ -1,10 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  eslint: {
-    // Allow production builds to successfully complete even if there are ESLint warnings
-    ignoreDuringBuilds: false, // Keep false to catch errors, but allow warnings
-  },
   typescript: {
     // Allow production builds to successfully complete even if there are type errors
     ignoreBuildErrors: false,
@@ -75,12 +71,14 @@ const nextConfig: NextConfig = {
   // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion'],
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+  },
+
+  // Turbopack configuration (Next.js 16+)
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
     },
   },

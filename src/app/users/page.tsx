@@ -1,6 +1,6 @@
 'use client';
 
-import { DateCell, ActionButtonCell } from '@/components/atoms/cells';
+import { ActionButtonCell, DateCell } from '@/components/atoms/cells';
 import { SearchBar } from '@/components/molecules/SearchBar';
 import { ColumnDef, DataTable } from '@/components/organisms/DataTable';
 import { UsersTemplate } from '@/components/templates/UsersTemplate';
@@ -175,7 +175,7 @@ export default function UsersPage() {
       />
       {selectedUser && (
         <Dialog open={true} onOpenChange={() => setSelectedUser(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-full sm:!max-w-3xl">
             <DialogHeader>
               <DialogTitle>{t('users.details.title')}</DialogTitle>
             </DialogHeader>
