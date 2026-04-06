@@ -114,9 +114,7 @@ function OrderDetailsModal({
                 <p className="text-sm font-medium">
                   {t('orders.details.orderNumber')}
                 </p>
-                <p className="text-sm text-gray-600">
-                  {order.order_id || order.id}
-                </p>
+                <p className="text-sm text-gray-600">{order.id}</p>
               </div>
               <div>
                 <p className="text-sm font-medium">

@@ -15,7 +15,9 @@
       "Bash(node -e \"const c = require\\('./node_modules/eslint-config-next'\\); console.log\\(Object.keys\\(c\\)\\)\")",
       "Bash(node --input-type=module)",
       "Bash(2>&1)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(nvm version:*)",
+      "Bash(nvm list:*)"
     ],
     "deny": [],
     "ask": []
